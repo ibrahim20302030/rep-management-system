@@ -1,0 +1,2650 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام إدارة المناديب - مع تصدير Excel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        * { font-family: 'Cairo', sans-serif; }
+        body { background: #f1f5f9; }
+        .page { display: none; animation: fadeIn 0.3s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .sidebar { background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); }
+        .nav-item.active { background: #3b82f6; color: white; }
+        input:focus, select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); padding: 12px 24px; border-radius: 12px; color: white; font-weight: 600; z-index: 9999; animation: slideDown 0.3s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 500px; animation: fadeIn 0.3s ease; }
+        .kpi-card { transition: all 0.3s ease; }
+        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .debt-positive { color: #dc2626; }
+        .debt-zero { color: #059669; }
+        .debt-negative { color: #7c3aed; }
+        .export-btn { background: linear-gradient(135deg, #059669 0%, #047857 100%); transition: all 0.3s ease; }
+        .export-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(5,150,105,0.3); }
+        .export-menu { display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); min-width: 220px; z-index: 50; overflow: hidden; }
+        .export-menu.active { display: block; animation: fadeIn 0.2s ease; }
+        .export-menu button { width: 100%; text-align: right; padding: 12px 16px; transition: all 0.2s; display: flex; align-items: center; gap: 10px; border: none; background: none; cursor: pointer; }
+        .export-menu button:hover { background: #f0fdf4; color: #059669; }
+        .print-btn { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); transition: all 0.3s ease; }
+        .print-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(99,102,241,0.3); }
+        .rep-portal { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); }
+        .rep-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        .rep-stat { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.05); }
+        .progress-ring { transform: rotate(-90deg); }
+        .progress-ring-circle { transition: stroke-dashoffset 0.5s ease; }
+        .order-input { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color: white; }
+        .order-input:focus { background: rgba(255,255,255,0.15); border-color: #3b82f6; }
+        .rep-btn { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+        .rep-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59,130,246,0.3); }
+        .rep-btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
+        .rep-btn-secondary:hover { background: rgba(255,255,255,0.2); }
+        .achievement-badge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .rank-badge { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        svg { display: inline-block; vertical-align: middle; }
+        .nav-item svg { width: 20px; height: 20px; }
+        .export-btn svg { width: 20px; height: 20px; }
+        .kpi-card svg { width: 24px; height: 24px; }
+
+    </style>
+</head>
+<body>
+<div id="firebaseLoading" style="position:fixed;inset:0;background:#f1f5f9;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
+    <div style="width:60px;height:60px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;"></div>
+    <p style="margin-top:20px;color:#64748b;font-weight:600;">جاري الاتصال بقاعدة البيانات...</p>
+    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+</div>
+
+<div id="editCarModal" class="modal">
+    <div class="modal-content shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-slate-800">تعديل بيانات السيارة</h3>
+            <button onclick="closeCarModal()" class="text-slate-400 hover:text-slate-600 text-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <form id="editCarForm" onsubmit="event.preventDefault(); saveCarEdit();" class="space-y-4">
+            <input type="hidden" id="editCarId">
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">المندوب</label>
+                <input type="text" id="editCarRepName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block font-bold text-slate-700 mb-2">نوع السيارة</label>
+                    <input type="text" id="editCarType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" readonly>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-700 mb-2">رقم اللوحة</label>
+                    <input type="text" id="editCarPlate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" readonly>
+                </div>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">تاريخ تسليم السيارة <span class="text-blue-600">*</span></label>
+                <input type="date" id="editCarReturn" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition">
+                <p class="text-xs text-slate-500 mt-1">اتركه فارغاً إذا لم يتم تحديد تاريخ التسليم بعد</p>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">ملاحظات</label>
+                <input type="text" id="editCarNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition">
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ التعديلات
+                </button>
+                <button type="button" onclick="closeCarModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-slate-800">تعديل بيانات المندوب</h3>
+            <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 text-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <form id="editForm" onsubmit="event.preventDefault(); saveEdit();" class="space-y-4">
+            <input type="hidden" id="editOldId">
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">اسم المندوب</label>
+                <input type="text" id="editName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">الرقم التعريفي</label>
+                <input type="text" id="editId" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono bg-slate-100" readonly>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">رقم الإقامة</label>
+                <input type="text" id="editIqama" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" required>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">تاريخ انتهاء الإقامة</label>
+                <input type="date" id="editExpiry" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ التعديلات
+                </button>
+                <button type="button" onclick="closeModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="flex h-screen">
+    <aside class="sidebar w-64 text-white flex-shrink-0 flex flex-col">
+        <div class="p-6 border-b border-slate-700">
+            <h1 class="text-xl font-bold text-center">📊 نظام المناديب</h1>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <button onclick="showPage('home')" id="nav_home" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> الرئيسية
+            </button>
+            <button onclick="showPage('reps')" id="nav_reps" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> تسجيل المندوب
+            </button>
+            <button onclick="showPage('loans')" id="nav_loans" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> سلف المناديب
+            </button>
+            <button onclick="showPage('daily')" id="nav_daily" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M9 12h6"/><path d="M9 16h6"/><path d="M9 8h6"/></svg> الطلبات اليومية
+            </button>
+            <button onclick="showPage('stats')" id="nav_stats" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg> الإحصائيات
+            </button>
+            <button onclick="showPage('cars')" id="nav_cars" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg> سيارات المناديب
+            </button>
+            <button onclick="showPage('bank')" id="nav_bank" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg> البنك
+            </button>
+            <button onclick="showPage('portal')" id="nav_portal" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> بوابة المندوب
+            </button>
+        </nav>
+    </aside>
+
+    <main class="flex-1 overflow-auto p-8">
+
+        <div id="homePage" class="page active max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">الرئيسية</h2>
+                    <p class="text-slate-500">نظرة عامة على حالة المناديب والإقامات</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button onclick="toggleExportMenu('home')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير البيانات
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div id="exportMenu_home" class="export-menu">
+                        <button onclick="exportIqamaAlerts()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> تصدير تنبيهات الإقامات
+                        </button>
+                        <button onclick="exportAllReps()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> تصدير جميع المناديب
+                        </button>
+                        <button onclick="exportFullReport()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg> تقرير شامل (جميع البيانات)
+                        </button>
+                        </div>
+                    </div>
+                    <button onclick="printPage('home')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <div class="kpi-card bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                            </div>
+                            <span class="text-blue-100 text-sm">إجمالي المناديب</span>
+                        </div>
+                        <div class="text-5xl font-bold" id="totalRepsCount">0</div>
+                        <div class="mt-2 text-blue-200 text-sm">مندوب مسجل</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card bg-gradient-to-br from-red-500 to-pink-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
+                            </div>
+                            <span class="text-red-100 text-sm">تنتهي خلال شهر</span>
+                        </div>
+                        <div class="text-5xl font-bold" id="expiring1Month">0</div>
+                        <div class="mt-2 text-red-200 text-sm">إقامة تحتاج تجديد عاجل</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <span class="text-orange-100 text-sm">تنتهي خلال شهرين</span>
+                        </div>
+                        <div class="text-5xl font-bold" id="expiring2Months">0</div>
+                        <div class="mt-2 text-orange-200 text-sm">إقامة تحتاج متابعة</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl p-6 shadow-lg relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -translate-x-16 -translate-y-16"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                            </div>
+                            <span class="text-emerald-100 text-sm">إقامات سارية</span>
+                        </div>
+                        <div class="text-5xl font-bold" id="validIqamas">0</div>
+                        <div class="mt-2 text-emerald-200 text-sm">إقامة بلا مشاكل</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-8">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                        إقامات تحتاج تجديد (تنتهي خلال شهر)
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">المندوب</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">رقم الإقامة</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">تاريخ الانتهاء</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">الأيام المتبقية</th>
+                                <th class="px-6 py-4 text-center font-bold text-slate-700">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="urgentTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="urgentEmpty" class="hidden text-center py-12 text-slate-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    <p>لا توجد إقامات تنتهي خلال شهر - الوضع جيد!</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        إقامات تنتهي خلال شهرين (تستحق المتابعة)
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">المندوب</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">رقم الإقامة</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">تاريخ الانتهاء</th>
+                                <th class="px-6 py-4 text-right font-bold text-slate-700">الأيام المتبقية</th>
+                                <th class="px-6 py-4 text-center font-bold text-slate-700">الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody id="warningTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="warningEmpty" class="hidden text-center py-12 text-slate-400">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+                    <p>لا توجد إقامات تنتهي خلال شهرين!</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="repsPage" class="page max-w-5xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">تسجيل مندوب جديد</h2>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportAllReps()" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير قائمة المناديب
+                    </button>
+                    <button onclick="printPage('reps')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <form id="repForm" onsubmit="event.preventDefault(); addRep();" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">اسم المندوب *</label>
+                        <input type="text" id="repName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="أحمد محمد" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">الرقم التعريفي (ID) *</label>
+                        <input type="text" id="repId" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="REP001" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">رقم الإقامة *</label>
+                        <input type="text" id="repIqama" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="1234567890" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">تاريخ انتهاء الإقامة *</label>
+                        <input type="date" id="repExpiry" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">كلمة مرور المندوب *</label>
+                        <input type="password" id="repPassword" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="••••••" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> تسجيل المندوب
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <h3 class="text-2xl font-bold text-slate-800">قائمة المناديب</h3>
+                <div class="relative w-full md:w-72">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    <input type="text" id="repSearch" oninput="filterRepsTable()" class="w-full pr-10 pl-4 py-2.5 border-2 border-slate-200 rounded-xl transition text-sm" placeholder="ابحث بالاسم أو المعرف أو رقم الإقامة...">
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <table class="w-full">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-6 py-4 text-right font-bold">الاسم</th>
+                            <th class="px-6 py-4 text-right font-bold">المعرف</th>
+                            <th class="px-6 py-4 text-right font-bold">الإقامة</th>
+                            <th class="px-6 py-4 text-right font-bold">الانتهاء</th>
+                            <th class="px-6 py-4 text-center font-bold">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="loansPage" class="page max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">سلف المناديب</h2>
+                    <p class="text-slate-500">تسجيل السلف والسداد وإدارة المديونيات</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button onclick="toggleExportMenu('loans')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير البيانات
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div id="exportMenu_loans" class="export-menu">
+                        <button onclick="exportLoansHistory()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> تصدير سجل العمليات
+                        </button>
+                        <button onclick="exportDebtSummary()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg> تصدير ملخص المديونيات
+                        </button>
+                        <button onclick="exportLoansFull()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6"/><path d="M8 12h8"/><path d="M8 18h8"/></svg> تقرير السلف الشامل
+                        </button>
+                        </div>
+                    </div>
+                    <button onclick="printPage('loans')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            تسجيل عملية جديدة
+                        </h3>
+                        <form id="loanForm" onsubmit="event.preventDefault(); addLoan();" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">المندوب *</label>
+                                <select id="loanRep" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white" required>
+                                    <option value="">اختر المندوب</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">المبلغ *</label>
+                                <input type="number" id="loanAmount" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="0.00" min="0" step="0.01" required>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">نوع العملية *</label>
+                                <select id="loanType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white" required>
+                                    <option value="">اختر النوع</option>
+                                    <option value="loan">سلفة (دين على المندوب)</option>
+                                    <option value="payment">سداد (خصم من الدين)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">التاريخ *</label>
+                                <input type="date" id="loanDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-bold text-slate-700 mb-2">ملاحظات</label>
+                                <input type="text" id="loanNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="ملاحظات إضافية...">
+                            </div>
+                            <div class="md:col-span-2">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ العملية
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                            <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+                                سجل العمليات
+                            </h3>
+                            <div class="flex items-center gap-3 w-full md:w-auto">
+                                <div class="relative flex-1 md:w-64">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                    <input type="text" id="loansSearch" oninput="filterLoansTable()" class="w-full pr-10 pl-4 py-2 border-2 border-slate-200 rounded-xl transition text-sm" placeholder="ابحث بالمندوب أو الملاحظات...">
+                                </div>
+                                <button onclick="clearAllLoans()" class="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm whitespace-nowrap">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline ml-1"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> مسح الكل
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">التاريخ</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">المندوب</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">النوع</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">المبلغ</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">الرصيد بعد</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">ملاحظات</th>
+                                        <th class="px-4 py-3 text-center font-bold text-slate-700">حذف</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="loansTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="loansEmpty" class="hidden text-center py-12 text-slate-400">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                            <p>لا توجد عمليات مسجلة</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                            بحث عن مديونية
+                        </h3>
+                        <div class="space-y-3">
+                            <select id="searchRep" onchange="searchDebt()" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white">
+                                <option value="">اختر المندوب للبحث</option>
+                            </select>
+                            <div id="searchResult" class="hidden p-4 bg-slate-50 rounded-xl">
+                                <div class="text-sm text-slate-500 mb-1">مديونية المندوب</div>
+                                <div class="text-3xl font-bold" id="searchDebtAmount">0</div>
+                                <div class="text-xs text-slate-400 mt-2" id="searchDebtStatus">لا يوجد دين</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+                            ملخص المديونيات
+                        </h3>
+                        <div class="space-y-3" id="debtSummary"></div>
+                        <div id="debtSummaryEmpty" class="text-center py-4 text-slate-400 text-sm">
+                            لا يوجد مناديب مسجلين
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-2xl p-6 shadow-lg">
+                        <div class="text-sm opacity-80 mb-2">إجمالي الديون على المناديب</div>
+                        <div class="text-4xl font-bold" id="totalDebt">0</div>
+                        <div class="mt-2 text-slate-300 text-sm">ريال سعودي</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dailyPage" class="page max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">الطلبات اليومية</h2>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportDailyOrders()" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير الطلبات
+                    </button>
+                    <button onclick="printPage('daily')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                <div class="flex items-center gap-4 mb-4">
+                    <button onclick="changeMonth(-1)" class="w-10 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                    <h3 id="monthLabel" class="text-xl font-bold min-w-[150px] text-center"></h3>
+                    <button onclick="changeMonth(1)" class="w-10 h-10 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <button onclick="saveOrders()" class="mr-auto bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-bold transition shadow-lg">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ
+                    </button>
+                </div>
+            </div>
+            <div id="dailyTable"></div>
+        </div>
+
+        <div id="statsPage" class="page max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">الإحصائيات</h2>
+                <div class="flex items-center gap-3">
+                    <button onclick="exportStatsReport()" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير التقرير
+                    </button>
+                    <button onclick="printPage('stats')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">إجمالي الطلبات</div>
+                    <div class="text-4xl font-bold" id="totalOrders">0</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">متوسط شهري</div>
+                    <div class="text-4xl font-bold" id="avgMonthly">0</div>
+                </div>
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">متوسط يومي</div>
+                    <div class="text-4xl font-bold" id="avgDaily">0</div>
+                </div>
+                <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">المناديب النشطة</div>
+                    <div class="text-4xl font-bold" id="activeReps">0</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> أعلى 5 مناديب
+                    </h3>
+                    <div id="top5List" class="space-y-3"></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></svg> أقل 5 مناديب
+                    </h3>
+                    <div id="bottom5List" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="carsPage" class="page max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">سيارات المناديب</h2>
+                    <p class="text-slate-500">إدارة سيارات التأجير للمناديب</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button onclick="toggleExportMenu('cars')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير البيانات
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div id="exportMenu_cars" class="export-menu">
+                        <button onclick="exportCarsList()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg> تصدير قائمة السيارات
+                        </button>
+                        <button onclick="exportCarsFull()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تقرير شامل
+                        </button>
+                        </div>
+                    </div>
+                    <button onclick="printPage('cars')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+                <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> تسجيل سيارة جديدة
+                </h3>
+                <form id="carForm" onsubmit="event.preventDefault(); addCar();" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">المندوب *</label>
+                        <select id="carRep" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white" required>
+                            <option value="">اختر المندوب</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">مكتب التأجير *</label>
+                        <input type="text" id="carOffice" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="مكتب التأجير" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">نوع السيارة *</label>
+                        <input type="text" id="carType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="مثال: تويوتا كامري" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">رقم السيارة (اللوحة) *</label>
+                        <input type="text" id="carPlate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="أ ب ت 1234" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">قيمة الإيجار (ريال/شهر) *</label>
+                        <input type="number" id="carRent" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="0.00" min="0" step="0.01" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">تاريخ استلام السيارة *</label>
+                        <input type="date" id="carPickup" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">تاريخ تسليم السيارة <span class="text-slate-400 font-normal text-sm">(اختياري)</span></label>
+                        <input type="date" id="carReturn" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-bold text-slate-700 mb-2">ملاحظات</label>
+                        <input type="text" id="carNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="ملاحظات إضافية...">
+                    </div>
+                    <div class="md:col-span-3">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> تسجيل السيارة
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="p-6 border-b border-slate-100 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg> قائمة سيارات المناديب
+                    </h3>
+                    <div class="flex gap-2">
+                        <button onclick="filterCars('all')" id="filterAll" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-bold transition">الكل</button>
+                        <button onclick="filterCars('active')" id="filterActive" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-bold transition hover:bg-slate-300">نشطة</button>
+                        <button onclick="filterCars('returned')" id="filterReturned" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-700 text-sm font-bold transition hover:bg-slate-300">مُسلّمة</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">المندوب</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">مكتب التأجير</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">السيارة</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">اللوحة</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">الإيجار</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">الاستلام</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">التسليم</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-700">الحالة</th>
+                                <th class="px-4 py-3 text-right font-bold text-slate-700">ملاحظات</th>
+                                <th class="px-4 py-3 text-center font-bold text-slate-700">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="carsTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="carsEmpty" class="hidden text-center py-12 text-slate-400">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-slate-300"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                    <p>لا توجد سيارات مسجلة</p>
+                </div>
+            </div>
+
+        </div>
+
+<div id="bankPage" class="page max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">سجل البنك</h2>
+                    <p class="text-slate-500">تسجيل العمليات البنكية والرصيد</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <button onclick="toggleExportMenu('bank')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير البيانات
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div id="exportMenu_bank" class="export-menu">
+                        <button onclick="exportBankHistory()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> تصدير سجل العمليات
+                        </button>
+                        <button onclick="exportBankFull()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تقرير شامل
+                        </button>
+                        </div>
+                    </div>
+                    <button onclick="printPage('loans')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg> تسجيل عملية جديدة
+                        </h3>
+                        <form id="bankForm" onsubmit="event.preventDefault(); addBankEntry();" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">التاريخ *</label>
+                                <input type="date" id="bankDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block font-bold text-slate-700 mb-2">البيان *</label>
+                                <input type="text" id="bankDesc" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="وصف العملية..." required>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">مدين (صرف)</label>
+                                <input type="number" id="bankDebit" oninput="updateBalancePreview()" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">دائن (إيداع)</label>
+                                <input type="number" id="bankCredit" oninput="updateBalancePreview()" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="0.00" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">الرصيد بعد <span class="text-emerald-600 text-sm">(تلقائي)</span></label>
+                                <div id="bankBalancePreview" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono bg-slate-50 text-slate-800 font-bold">0.00</div>
+                                <input type="hidden" id="bankBalance" value="0">
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block font-bold text-slate-700 mb-2">ملاحظات</label>
+                                <input type="text" id="bankNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="ملاحظات إضافية...">
+                            </div>
+                            <div class="md:col-span-3">
+                                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> تسجيل العملية
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> سجل العمليات
+                                </h3>
+                                <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                                    <!-- Search Box -->
+                                    <div class="relative flex-1 md:w-64">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                        <input type="text" id="bankSearch" oninput="filterBankTable()" class="w-full pr-10 pl-4 py-2 border-2 border-slate-200 rounded-xl transition text-sm" placeholder="ابحث في البيان أو الملاحظات...">
+                                    </div>
+                                    <!-- Filter Dropdown -->
+                                    <select id="bankFilter" onchange="filterBankTable()" class="px-4 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                                        <option value="all">الكل</option>
+                                        <option value="debit">مدين فقط (صرف)</option>
+                                        <option value="credit">دائن فقط (إيداع)</option>
+                                    </select>
+                                    <button onclick="clearAllBank()" class="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg transition text-sm whitespace-nowrap">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline ml-1"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> مسح الكل
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">#</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">التاريخ</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">البيان</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">مدين</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">دائن</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">الرصيد</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-700">ملاحظات</th>
+                                        <th class="px-4 py-3 text-center font-bold text-slate-700">حذف</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bankTableBody"></tbody>
+                            </table>
+                        </div>
+                        <div id="bankEmpty" class="hidden text-center py-12 text-slate-400">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-slate-300"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg>
+                            <p>لا توجد عمليات مسجلة</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl p-6 shadow-lg">
+                        <div class="text-sm opacity-80 mb-2">الرصيد الحالي</div>
+                        <div class="text-4xl font-bold" id="currentBalance">0.00</div>
+                        <div class="mt-2 text-blue-200 text-sm">ريال سعودي</div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg> ملخص العمليات
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                                <span class="text-slate-600">إجمالي مدين (صرف)</span>
+                                <span class="font-bold text-red-600" id="totalDebit">0.00</span>
+                            </div>
+                            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                                <span class="text-slate-600">إجمالي دائن (إيداع)</span>
+                                <span class="font-bold text-emerald-600" id="totalCredit">0.00</span>
+                            </div>
+                            <div class="flex justify-between p-3 bg-blue-50 rounded-xl">
+                                <span class="text-blue-800 font-bold">عدد العمليات</span>
+                                <span class="font-bold text-blue-800" id="totalEntries">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="portalPage" class="page max-w-5xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">بوابة المندوب</h2>
+                    <p class="text-slate-500">تسجيل دخول المندوب لإدارة بياناته</p>
+                </div>
+            </div>
+
+            <!-- Login Section -->
+            <div id="portalLogin" class="bg-white rounded-2xl shadow-lg p-8 max-w-md mx-auto">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <h3 class="text-2xl font-bold text-slate-800">تسجيل دخول المندوب</h3>
+                    <p class="text-slate-500 mt-2">أدخل رقمك التعريفي للدخول</p>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">الرقم التعريفي (ID)</label>
+                        <input type="text" id="portalLoginId" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="REP001" onkeypress="if(event.key==='Enter')portalLogin()">
+                    </div>
+                    <button onclick="portalLogin()" class="w-full rep-btn text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg> دخول
+                    </button>
+                </div>
+            </div>
+
+            <!-- Dashboard (Hidden initially) -->
+            <div id="portalDashboard" class="hidden">
+                <!-- Header Card -->
+                <div class="rep-portal rounded-2xl p-6 mb-6 text-white">
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold" id="portalAvatar">
+                            أ
+                        </div>
+                        <div>
+                            <h3 class="text-2xl font-bold" id="portalName">اسم المندوب</h3>
+                            <p class="text-blue-200 text-sm" id="portalId">REP001</p>
+                        </div>
+                        <button onclick="portalLogout()" class="mr-auto rep-btn-secondary text-white px-4 py-2 rounded-xl transition text-sm">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> خروج
+                        </button>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="rep-stat rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold" id="portalOrdersToday">0</div>
+                            <div class="text-sm text-blue-200">طلبات اليوم</div>
+                        </div>
+                        <div class="rep-stat rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold" id="portalOrdersMonth">0</div>
+                            <div class="text-sm text-blue-200">طلبات الشهر</div>
+                        </div>
+                        <div class="rep-stat rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold" id="portalDebt">0</div>
+                            <div class="text-sm text-blue-200">السلف</div>
+                        </div>
+                        <div class="rep-stat rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold" id="portalRank">-</div>
+                            <div class="text-sm text-blue-200">ترتيبك</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Daily Orders Input -->
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M9 12h6"/><path d="M9 16h6"/><path d="M9 8h6"/></svg>
+                            تسجيل طلبات اليوم
+                        </h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">التاريخ</label>
+                                <input type="date" id="portalOrderDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition">
+                            </div>
+                            <div>
+                                <label class="block font-bold text-slate-700 mb-2">عدد الطلبات</label>
+                                <input type="number" id="portalOrderCount" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono text-lg" placeholder="0" min="0" onkeypress="if(event.key==='Enter')portalSaveOrder()">
+                            </div>
+                            <button onclick="portalSaveOrder()" class="w-full rep-btn text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ الطلبات
+                            </button>
+                        </div>
+
+                        <!-- Recent Orders -->
+                        <div class="mt-6">
+                            <h4 class="font-bold text-slate-700 mb-3">طلباتك الأخيرة</h4>
+                            <div id="portalRecentOrders" class="space-y-2 max-h-48 overflow-y-auto">
+                                <div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- My Stats -->
+                    <div class="space-y-6">
+                        <!-- Monthly Progress -->
+                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                                تقدمك الشهري
+                            </h3>
+                            <div class="flex items-center justify-center mb-4">
+                                <div class="relative">
+                                    <svg class="progress-ring" width="120" height="120">
+                                        <circle cx="60" cy="60" r="54" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+                                        <circle id="portalProgressCircle" class="progress-ring-circle" cx="60" cy="60" r="54" fill="none" stroke="#3b82f6" stroke-width="8" stroke-linecap="round" stroke-dasharray="339.292" stroke-dashoffset="339.292"/>
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-slate-800" id="portalProgressPercent">0%</div>
+                                            <div class="text-xs text-slate-500">من الهدف</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between text-sm">
+                                <span class="text-slate-600">طلباتك: <span class="font-bold" id="portalMyOrders">0</span></span>
+                                <span class="text-slate-600">هدف الشهر: <span class="font-bold">500</span></span>
+                            </div>
+                        </div>
+
+                        <!-- Iqama Status -->
+                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                حالة الإقامة
+                            </h3>
+                            <div class="space-y-3">
+                                <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600">رقم الإقامة</span>
+                                    <span class="font-bold font-mono" id="portalIqama">-</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600">تاريخ الانتهاء</span>
+                                    <span class="font-bold" id="portalExpiry">-</span>
+                                </div>
+                                <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                                    <span class="text-slate-600">الأيام المتبقية</span>
+                                    <span class="font-bold" id="portalDaysLeft">-</span>
+                                </div>
+                                <div id="portalIqamaAlert" class="hidden p-3 rounded-xl text-center font-bold text-sm"></div>
+                            </div>
+                        </div>
+
+                        <!-- Car Status -->
+                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+                                حالة السيارة
+                            </h3>
+                            <div id="portalCarInfo" class="space-y-3">
+                                <div class="text-center text-slate-400 py-4">لا توجد سيارة مسجلة</div>
+                            </div>
+                        </div>
+
+                        <!-- Achievements -->
+                        <div class="bg-white rounded-2xl shadow-lg p-6">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                                إنجازاتك
+                            </h3>
+                            <div id="portalAchievements" class="flex flex-wrap gap-2">
+                                <span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+let reps = [];
+let orders = {};
+let loans = [];
+let cars = [];
+let bankEntries = [];
+let repPasswords = {};
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
+  authDomain: "rep-management-system.firebaseapp.com",
+  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rep-management-system",
+  storageBucket: "rep-management-system.firebasestorage.app",
+  messagingSenderId: "416275066968",
+  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Firebase save functions
+function saveReps() { db.ref('reps').set(reps); }
+function saveOrdersData() { db.ref('orders').set(orders); }
+function saveLoans() { db.ref('loans').set(loans); }
+function saveCars() { db.ref('cars').set(cars); }
+function saveBank() { db.ref('bankEntries').set(bankEntries); }
+function savePasswords() { db.ref('repPasswords').set(repPasswords); }
+
+// Data ready flag
+let firebaseReady = false;
+let pendingCallbacks = [];
+
+function whenReady(callback) {
+    if (firebaseReady) callback();
+    else pendingCallbacks.push(callback);
+}
+
+function markReady() {
+    firebaseReady = true;
+    pendingCallbacks.forEach(cb => cb());
+    pendingCallbacks = [];
+    // Hide loading
+    const loader = document.getElementById('firebaseLoading');
+    if (loader) loader.style.display = 'none';
+}
+
+// Initialize Firebase listeners
+function initFirebaseListeners() {
+    let loadedCount = 0;
+    const totalNodes = 6;
+
+    function checkAllLoaded() {
+        loadedCount++;
+        if (loadedCount >= totalNodes) {
+            markReady();
+            renderReps();
+            renderHomeStats();
+            showPage('home');
+        }
+    }
+
+    db.ref('reps').on('value', (snapshot) => {
+        reps = snapshot.val() || [];
+        if (firebaseReady) {
+            renderReps();
+            renderHomeStats();
+            if (document.getElementById('loansPage').classList.contains('active')) initLoansPage();
+            if (document.getElementById('carsPage').classList.contains('active')) initCarsPage();
+            if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+        }
+        checkAllLoaded();
+    });
+
+    db.ref('orders').on('value', (snapshot) => {
+        orders = snapshot.val() || {};
+        if (firebaseReady) {
+            if (document.getElementById('dailyPage').classList.contains('active')) renderDaily();
+            if (document.getElementById('statsPage').classList.contains('active')) renderStats();
+            if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+        }
+        checkAllLoaded();
+    });
+
+    db.ref('loans').on('value', (snapshot) => {
+        loans = snapshot.val() || [];
+        if (firebaseReady && document.getElementById('loansPage').classList.contains('active')) {
+            renderLoans();
+            renderDebtSummary();
+        }
+        checkAllLoaded();
+    });
+
+    db.ref('cars').on('value', (snapshot) => {
+        cars = snapshot.val() || [];
+        if (firebaseReady && document.getElementById('carsPage').classList.contains('active')) renderCars();
+        if (firebaseReady && document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+        checkAllLoaded();
+    });
+
+    db.ref('bankEntries').on('value', (snapshot) => {
+        bankEntries = snapshot.val() || [];
+        if (firebaseReady && document.getElementById('bankPage').classList.contains('active')) renderBank();
+        checkAllLoaded();
+    });
+
+    db.ref('repPasswords').on('value', (snapshot) => {
+        repPasswords = snapshot.val() || {};
+        checkAllLoaded();
+    });
+}
+
+initFirebaseListeners();
+
+function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(page + 'Page').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('nav_' + page).classList.add('active');
+    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+    if (page === 'daily') renderDaily();
+    if (page === 'stats') renderStats();
+    if (page === 'home') renderHomeStats();
+    if (page === 'loans') initLoansPage();
+}
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.relative')) {
+        document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+    }
+});
+
+function toggleExportMenu(page) {
+    const menu = document.getElementById('exportMenu_' + page);
+    const isActive = menu.classList.contains('active');
+    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+    if (!isActive) menu.classList.add('active');
+}
+
+function showToast(msg, type) {
+    const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b' };
+    const div = document.createElement('div');
+    div.className = 'toast';
+    div.style.background = colors[type] || colors.success;
+    div.textContent = msg;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+// ========== دوال التصدير لـ Excel ==========
+
+function exportToExcel(data, sheetName, fileName, headers) {
+    if (data.length === 0) {
+        showToast('لا توجد بيانات للتصدير', 'warning');
+        return;
+    }
+    const wb = XLSX.utils.book_new();
+    const wsData = [headers, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const colWidths = headers.map((h, i) => {
+        const maxLength = Math.max(...data.map(row => String(row[i] || '').length), String(h).length);
+        return { wch: Math.min(maxLength + 4, 50) };
+    });
+    ws['!cols'] = colWidths;
+    ws['!rtl'] = true;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName + '.xlsx');
+    showToast('تم التصدير بنجاح', 'success');
+}
+
+function exportIqamaAlerts() {
+    const now = new Date();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const oneMonth = oneDay * 30;
+    const urgentData = [];
+    const warningData = [];
+
+    reps.forEach(rep => {
+        const expiryDate = new Date(rep.expiry);
+        const diff = expiryDate - now;
+        const daysLeft = Math.ceil(diff / oneDay);
+        if (diff > 0 && diff <= oneMonth) {
+            urgentData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'عاجل - تنتهي خلال شهر']);
+        } else if (diff > oneMonth && diff <= oneDay * 60) {
+            warningData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'تنبيه - تنتهي خلال شهرين']);
+        }
+    });
+
+    if (urgentData.length === 0 && warningData.length === 0) {
+        showToast('لا توجد إقامات تحتاج تجديد حالياً', 'warning');
+        return;
+    }
+
+    const wb = XLSX.utils.book_new();
+    const headers = ['المندوب', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'];
+
+    if (urgentData.length > 0) {
+        const ws1 = XLSX.utils.aoa_to_sheet([headers, ...urgentData]);
+        ws1['!rtl'] = true;
+        ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'إقامات عاجلة');
+    }
+    if (warningData.length > 0) {
+        const ws2 = XLSX.utils.aoa_to_sheet([headers, ...warningData]);
+        ws2['!rtl'] = true;
+        ws2['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
+        XLSX.utils.book_append_sheet(wb, ws2, 'إقامات تحتاج متابعة');
+    }
+
+    XLSX.writeFile(wb, 'تنبيهات_الإقامات_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير تنبيهات الإقامات', 'success');
+}
+
+function exportAllReps() {
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const data = reps.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
+        return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status, new Date(rep.createdAt).toLocaleDateString('ar-SA')];
+    });
+    exportToExcel(data, 'المناديب', 'قائمة_المناديب', 
+        ['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة', 'تاريخ التسجيل']);
+}
+
+function exportLoansHistory() {
+    if (loans.length === 0) { showToast('لا توجد عمليات مسجلة', 'warning'); return; }
+    const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const data = sortedLoans.map(loan => [
+        loan.date, loan.repName, loan.type === 'loan' ? 'سلفة' : 'سداد',
+        loan.type === 'loan' ? parseFloat(loan.amount).toFixed(2) : '-' + parseFloat(loan.amount).toFixed(2),
+        parseFloat(loan.balanceAfter).toFixed(2), loan.notes || '-'
+    ]);
+    exportToExcel(data, 'سجل العمليات', 'سجل_السلف', 
+        ['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات']);
+}
+
+function exportDebtSummary() {
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const debts = []; let totalDebt = 0;
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) {
+            debts.push({name: rep.name, id: rep.id, debt: debt, status: debt > 0 ? 'مديون' : 'له رصيد'});
+            if (debt > 0) totalDebt += debt;
+        }
+    });
+    debts.sort((a, b) => b.debt - a.debt);
+    const data = debts.map(d => [d.name, d.id, d.debt.toFixed(2), d.status]);
+    data.push(['', '', '', '']);
+    data.push(['الإجمالي', '', totalDebt.toFixed(2), 'ريال سعودي']);
+    exportToExcel(data, 'ملخص المديونيات', 'ملخص_المديونيات', 
+        ['المندوب', 'المعرف', 'المبلغ', 'الحالة']);
+}
+
+function exportLoansFull() {
+    const wb = XLSX.utils.book_new();
+    if (loans.length > 0) {
+        const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const loansData = sortedLoans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
+        const ws1 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
+        ws1['!rtl'] = true; ws1['!cols'] = [{wch:12}, {wch:20}, {wch:10}, {wch:12}, {wch:12}, {wch:30}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'سجل العمليات');
+    }
+    const debts = []; let totalDebt = 0;
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) { debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']); if (debt > 0) totalDebt += debt; }
+    });
+    debts.sort((a, b) => parseFloat(b[2]) - parseFloat(a[2]));
+    debts.push(['', '', '', '']); debts.push(['الإجمالي', '', totalDebt.toFixed(2), '']);
+    const ws2 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
+    ws2['!rtl'] = true; ws2['!cols'] = [{wch:20}, {wch:15}, {wch:12}, {wch:15}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المديونيات');
+    XLSX.writeFile(wb, 'تقرير_السلف_الشامل_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير التقرير الشامل', 'success');
+}
+
+function exportDailyOrders() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const headers = ['المندوب', ...Array.from({length: daysInMonth}, (_, i) => (i + 1).toString()), 'الإجمالي'];
+    const data = [];
+    reps.forEach(rep => {
+        let total = 0;
+        const row = [rep.name];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
+            row.push(val); total += parseInt(val);
+        }
+        row.push(total); data.push(row);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!rtl'] = true;
+    const colWidths = [{wch: 20}];
+    for (let i = 0; i < daysInMonth; i++) colWidths.push({wch: 6});
+    colWidths.push({wch: 10});
+    ws['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws, 'الطلبات اليومية');
+    XLSX.writeFile(wb, `الطلبات_اليومية_${monthNames[currentMonth]}_${currentYear}.xlsx`);
+    showToast('تم تصدير الطلبات اليومية', 'success');
+}
+
+function exportStatsReport() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const stats = reps.map(rep => {
+        let total = 0, activeDays = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
+            total += parseInt(val); if (val > 0) activeDays++;
+        }
+        return {name: rep.name, id: rep.id, total, activeDays, avg: activeDays > 0 ? (total / activeDays).toFixed(1) : 0};
+    });
+    const sorted = [...stats].sort((a, b) => b.total - a.total);
+    const grandTotal = stats.reduce((s, r) => s + r.total, 0);
+    const wb = XLSX.utils.book_new();
+    const summaryData = [
+        ['البيان', 'القيمة'],
+        ['الشهر', monthNames[currentMonth] + ' ' + currentYear],
+        ['إجمالي الطلبات', grandTotal],
+        ['متوسط شهري', stats.length > 0 ? (grandTotal / stats.length).toFixed(1) : 0],
+        ['متوسط يومي', grandTotal > 0 ? (grandTotal / 30).toFixed(1) : 0],
+        ['المناديب النشطة', stats.filter(r => r.total > 0).length],
+        ['إجمالي المناديب', reps.length]
+    ];
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws1['!rtl'] = true; ws1['!cols'] = [{wch: 25}, {wch: 15}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'إحصائيات عامة');
+    const detailData = sorted.map((r, i) => [i + 1, r.name, r.id, r.total, r.activeDays, r.avg]);
+    const ws2 = XLSX.utils.aoa_to_sheet([['#', 'المندوب', 'المعرف', 'الإجمالي', 'أيام نشطة', 'متوسط يومي'], ...detailData]);
+    ws2['!rtl'] = true; ws2['!cols'] = [{wch:5}, {wch:20}, {wch:15}, {wch:12}, {wch:12}, {wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'تفصيل المناديب');
+    XLSX.writeFile(wb, `إحصائيات_${monthNames[currentMonth]}_${currentYear}.xlsx`);
+    showToast('تم تصدير الإحصائيات', 'success');
+}
+
+function exportFullReport() {
+    const wb = XLSX.utils.book_new();
+    const now = new Date().toISOString().split('T')[0];
+    if (reps.length > 0) {
+        const repsData = reps.map(rep => {
+            const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+            let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
+            return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status];
+        });
+        const ws1 = XLSX.utils.aoa_to_sheet([['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'], ...repsData]);
+        ws1['!rtl'] = true; ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:15}, {wch:15}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'المناديب');
+    }
+    if (loans.length > 0) {
+        const loansData = loans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
+        const ws2 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
+        ws2['!rtl'] = true;
+        XLSX.utils.book_append_sheet(wb, ws2, 'السلف');
+    }
+    const debts = [];
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']);
+    });
+    if (debts.length > 0) {
+        const ws3 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
+        ws3['!rtl'] = true;
+        XLSX.utils.book_append_sheet(wb, ws3, 'المديونيات');
+    }
+    XLSX.writeFile(wb, 'التقرير_الشامل_' + now + '.xlsx');
+    showToast('تم تصدير التقرير الشامل', 'success');
+}
+
+// ========== باقي الدوال الأصلية ==========
+
+function renderHomeStats() {
+    const now = new Date();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const oneMonth = oneDay * 30;
+    const twoMonths = oneDay * 60;
+    let expiring1Month = 0, expiring2Months = 0, validCount = 0;
+    const urgentList = [], warningList = [];
+
+    reps.forEach(rep => {
+        const expiryDate = new Date(rep.expiry);
+        const diff = expiryDate - now;
+        const daysLeft = Math.ceil(diff / oneDay);
+        if (diff < 0) {} else if (diff <= oneMonth) { expiring1Month++; urgentList.push({...rep, daysLeft}); }
+        else if (diff <= twoMonths) { expiring2Months++; warningList.push({...rep, daysLeft}); }
+        else { validCount++; }
+    });
+
+    document.getElementById('totalRepsCount').textContent = reps.length;
+    document.getElementById('expiring1Month').textContent = expiring1Month;
+    document.getElementById('expiring2Months').textContent = expiring2Months;
+    document.getElementById('validIqamas').textContent = validCount;
+
+    const urgentBody = document.getElementById('urgentTableBody');
+    const urgentEmpty = document.getElementById('urgentEmpty');
+    urgentList.sort((a, b) => a.daysLeft - b.daysLeft);
+    if (urgentList.length === 0) { urgentBody.innerHTML = ''; urgentEmpty.classList.remove('hidden'); }
+    else {
+        urgentEmpty.classList.add('hidden');
+        urgentBody.innerHTML = urgentList.map(rep => `
+            <tr class="border-b hover:bg-red-50 transition">
+                <td class="px-6 py-4 font-semibold text-slate-800">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4 text-slate-700">${rep.expiry}</td>
+                <td class="px-6 py-4"><span class="font-bold ${rep.daysLeft < 7 ? 'text-red-600' : 'text-orange-600'}">${rep.daysLeft} يوم</span></td>
+                <td class="px-6 py-4 text-center"><span class="px-3 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">عاجل</span></td>
+            </tr>`).join('');
+    }
+
+    const warningBody = document.getElementById('warningTableBody');
+    const warningEmpty = document.getElementById('warningEmpty');
+    warningList.sort((a, b) => a.daysLeft - b.daysLeft);
+    if (warningList.length === 0) { warningBody.innerHTML = ''; warningEmpty.classList.remove('hidden'); }
+    else {
+        warningEmpty.classList.add('hidden');
+        warningBody.innerHTML = warningList.map(rep => `
+            <tr class="border-b hover:bg-orange-50 transition">
+                <td class="px-6 py-4 font-semibold text-slate-800">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4 text-slate-700">${rep.expiry}</td>
+                <td class="px-6 py-4"><span class="font-bold text-orange-600">${rep.daysLeft} يوم</span></td>
+                <td class="px-6 py-4 text-center"><span class="px-3 py-1 rounded-full text-xs bg-orange-100 text-orange-700 font-bold">تنبيه</span></td>
+            </tr>`).join('');
+    }
+}
+
+function addRep() {
+    const name = document.getElementById('repName').value.trim();
+    const id = document.getElementById('repId').value.trim();
+    const iqama = document.getElementById('repIqama').value.trim();
+    const expiry = document.getElementById('repExpiry').value;
+    const password = document.getElementById('repPassword').value.trim();
+    if (!name || !id || !iqama || !expiry || !password) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
+    if (reps.find(r => r.id === id)) { showToast('هذا المعرف مستخدم مسبقاً', 'error'); return; }
+    reps.push({id, name, iqama, expiry, createdAt: new Date().toISOString()});
+    // حفظ كلمة المرور في repPasswords
+    // repPasswords loaded from Firebase
+    repPasswords[id] = password;
+    savePasswords();
+    saveReps(); document.getElementById('repForm').reset(); 
+    document.getElementById('repSearch').value = '';
+    renderReps(); renderHomeStats(); showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
+}
+
+function deleteRep(id) {
+    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    reps = reps.filter(r => r.id !== id); saveReps(); 
+    // حذف كلمة المرور أيضاً
+    // repPasswords loaded from Firebase
+    delete repPasswords[id];
+    savePasswords();
+    if (document.getElementById('repSearch').value) {
+        filterRepsTable();
+    } else {
+        renderReps(); 
+    }
+    renderHomeStats(); 
+    showToast('تم الحذف بنجاح', 'success');
+}
+
+// تعيين/تغيير كلمة مرور المندوب
+function setRepPassword(repId) {
+    const rep = reps.find(r => r.id === repId);
+    if (!rep) return;
+    const newPass = prompt('أدخل كلمة المرور الجديدة للمندوب: ' + rep.name);
+    if (newPass === null) return;
+    if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
+    // repPasswords loaded from Firebase
+    repPasswords[repId] = newPass.trim();
+    savePasswords();
+    showToast('تم تحديث كلمة المرور بنجاح', 'success');
+}
+
+function openEditModal(id) {
+    const rep = reps.find(r => r.id === id);
+    if (!rep) return;
+    document.getElementById('editOldId').value = id;
+    document.getElementById('editName').value = rep.name;
+    document.getElementById('editId').value = rep.id;
+    document.getElementById('editIqama').value = rep.iqama;
+    document.getElementById('editExpiry').value = rep.expiry;
+    document.getElementById('editModal').classList.add('active');
+}
+
+function closeModal() { document.getElementById('editModal').classList.remove('active'); }
+
+function saveEdit() {
+    const oldId = document.getElementById('editOldId').value;
+    const newName = document.getElementById('editName').value.trim();
+    const newIqama = document.getElementById('editIqama').value.trim();
+    const newExpiry = document.getElementById('editExpiry').value;
+    if (!newName || !newIqama || !newExpiry) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
+    const index = reps.findIndex(r => r.id === oldId);
+    if (index !== -1) {
+        reps[index].name = newName; reps[index].iqama = newIqama; reps[index].expiry = newExpiry;
+        reps[index].updatedAt = new Date().toISOString();
+        saveReps(); 
+        if (document.getElementById('repSearch').value) {
+            filterRepsTable();
+        } else {
+            renderReps(); 
+        }
+        renderHomeStats(); closeModal(); showToast('تم تحديث البيانات بنجاح', 'success');
+    }
+}
+
+let repsFiltered = [];
+
+function renderReps() {
+    const tbody = document.getElementById('repsTableBody');
+
+    // Sort by expiry date ascending (earliest first)
+    const sortedReps = [...reps].sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+
+    if (sortedReps.length === 0) { 
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا يوجد مناديب مسجلين</td></tr>'; 
+        return; 
+    }
+
+    tbody.innerHTML = sortedReps.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
+        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-semibold">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function filterRepsTable() {
+    const searchTerm = document.getElementById('repSearch').value.trim().toLowerCase();
+    const tbody = document.getElementById('repsTableBody');
+
+    if (!searchTerm) {
+        renderReps();
+        return;
+    }
+
+    // Filter reps
+    repsFiltered = reps.filter(rep => 
+        rep.name.toLowerCase().includes(searchTerm) ||
+        rep.id.toLowerCase().includes(searchTerm) ||
+        rep.iqama.includes(searchTerm)
+    );
+
+    // Sort filtered by expiry ascending
+    repsFiltered.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+
+    if (repsFiltered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا توجد نتائج مطابقة للبحث</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = repsFiltered.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
+        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-semibold">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function initLoansPage() {
+    const loanRep = document.getElementById('loanRep');
+    const searchRep = document.getElementById('searchRep');
+    loanRep.innerHTML = '<option value="">اختر المندوب</option>';
+    searchRep.innerHTML = '<option value="">اختر المندوب للبحث</option>';
+    reps.forEach(rep => {
+        loanRep.innerHTML += `<option value="${rep.id}">${rep.name} (${rep.id})</option>`;
+        searchRep.innerHTML += `<option value="${rep.id}">${rep.name}</option>`;
+    });
+    document.getElementById('loanDate').value = new Date().toISOString().split('T')[0];
+    renderLoans(); renderDebtSummary();
+}
+
+function getRepDebt(repId) {
+    let debt = 0;
+    loans.filter(l => l.repId === repId).forEach(loan => {
+        if (loan.type === 'loan') debt += parseFloat(loan.amount); else debt -= parseFloat(loan.amount);
+    });
+    return debt;
+}
+
+function addLoan() {
+    const repId = document.getElementById('loanRep').value;
+    const amount = parseFloat(document.getElementById('loanAmount').value);
+    const type = document.getElementById('loanType').value;
+    const date = document.getElementById('loanDate').value;
+    const notes = document.getElementById('loanNotes').value.trim();
+    if (!repId || !amount || amount <= 0 || !type || !date) { showToast('الرجاء ملء جميع الحقول الإلزامية', 'error'); return; }
+    const rep = reps.find(r => r.id === repId);
+    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
+    if (type === 'payment') {
+        const currentDebt = getRepDebt(repId);
+        if (amount > currentDebt) { showToast('مبلغ السداد أكبر من الدين الحالي (' + currentDebt.toFixed(2) + ')', 'error'); return; }
+    }
+    const newBalance = type === 'loan' ? getRepDebt(repId) + amount : getRepDebt(repId) - amount;
+    loans.push({id: Date.now().toString(), repId, repName: rep.name, amount, type, date, notes, balanceAfter: newBalance, createdAt: new Date().toISOString()});
+    saveLoans(); document.getElementById('loanForm').reset(); document.getElementById('loanDate').value = new Date().toISOString().split('T')[0];
+    renderLoans(); renderDebtSummary(); showToast(type === 'loan' ? 'تم تسجيل السلفة بنجاح' : 'تم تسجيل السداد بنجاح', 'success');
+}
+
+function deleteLoan(loanId) {
+    if (!confirm('هل أنت متأكد من حذف هذه العملية؟')) return;
+    loans = loans.filter(l => l.id !== loanId); saveLoans(); 
+    if (document.getElementById('loansSearch').value) {
+        filterLoansTable();
+    } else {
+        renderLoans(); 
+    }
+    renderDebtSummary(); showToast('تم حذف العملية', 'success');
+}
+
+function clearAllLoans() {
+    if (!confirm('هل أنت متأكد من مسح جميع العمليات؟')) return;
+    loans = []; saveLoans(); 
+    document.getElementById('loansSearch').value = '';
+    renderLoans(); renderDebtSummary(); showToast('تم مسح جميع العمليات', 'success');
+}
+
+let loansFiltered = [];
+
+function filterLoansTable() {
+    const searchTerm = document.getElementById('loansSearch').value.trim().toLowerCase();
+
+    if (!searchTerm) {
+        loansFiltered = [];
+        renderLoansTable();
+        return;
+    }
+
+    loansFiltered = loans.filter(loan => 
+        loan.repName.toLowerCase().includes(searchTerm) ||
+        (loan.notes && loan.notes.toLowerCase().includes(searchTerm)) ||
+        loan.date.includes(searchTerm) ||
+        loan.amount.toString().includes(searchTerm)
+    );
+
+    renderLoansTable();
+}
+
+function renderLoansTable() {
+    const tbody = document.getElementById('loansTableBody');
+    const emptyDiv = document.getElementById('loansEmpty');
+
+    const entriesToRender = loansFiltered.length > 0 || document.getElementById('loansSearch').value
+        ? loansFiltered 
+        : [...loans];
+
+    if (entriesToRender.length === 0) {
+        tbody.innerHTML = '';
+        if (document.getElementById('loansSearch').value) {
+            emptyDiv.classList.remove('hidden');
+            emptyDiv.querySelector('p').textContent = 'لا توجد نتائج مطابقة للبحث';
+        } else {
+            emptyDiv.classList.remove('hidden');
+            emptyDiv.querySelector('p').textContent = 'لا توجد عمليات مسجلة';
+        }
+        return;
+    }
+
+    emptyDiv.classList.add('hidden');
+    const sortedLoans = [...entriesToRender].sort((a, b) => new Date(b.date) - new Date(a.date));
+    tbody.innerHTML = sortedLoans.map(loan => {
+        const typeBadge = loan.type === 'loan' ? '<span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">سلفة</span>' : '<span class="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">سداد</span>';
+        const amountClass = loan.type === 'loan' ? 'text-red-600' : 'text-emerald-600';
+        const amountSign = loan.type === 'loan' ? '+' : '-';
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-4 py-3 text-slate-700">${loan.date}</td>
+                <td class="px-4 py-3 font-semibold">${loan.repName}</td>
+                <td class="px-4 py-3">${typeBadge}</td>
+                <td class="px-4 py-3 font-bold ${amountClass} font-mono">${amountSign}${parseFloat(loan.amount).toFixed(2)}</td>
+                <td class="px-4 py-3 font-bold font-mono ${loan.balanceAfter > 0 ? 'text-red-600' : 'text-emerald-600'}">${parseFloat(loan.balanceAfter).toFixed(2)}</td>
+                <td class="px-4 py-3 text-slate-500 text-sm">${loan.notes || '-'}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="deleteLoan('${loan.id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function renderLoans() {
+    loansFiltered = [];
+    document.getElementById('loansSearch').value = '';
+    renderLoansTable();
+}
+
+function renderDebtSummary() {
+    const container = document.getElementById('debtSummary');
+    const emptyDiv = document.getElementById('debtSummaryEmpty');
+    if (reps.length === 0) {
+        container.innerHTML = ''; emptyDiv.classList.remove('hidden');
+        document.getElementById('totalDebt').textContent = '0.00'; return;
+    }
+    emptyDiv.classList.add('hidden');
+    let totalDebt = 0;
+    const debts = [];
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) { debts.push({...rep, debt}); if (debt > 0) totalDebt += debt; }
+    });
+    debts.sort((a, b) => b.debt - a.debt);
+    container.innerHTML = debts.map(rep => {
+        const debtClass = rep.debt > 0 ? 'debt-positive' : rep.debt < 0 ? 'debt-negative' : 'debt-zero';
+        const debtText = rep.debt > 0 ? 'مديون' : rep.debt < 0 ? 'له رصيد' : 'لا يوجد دين';
+        return `
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 text-white flex items-center justify-center font-bold text-sm">${rep.name.charAt(0)}</div>
+                    <div><div class="font-bold text-slate-800">${rep.name}</div><div class="text-xs text-slate-500">${rep.id}</div></div>
+                </div>
+                <div class="text-right">
+                    <div class="font-bold text-lg ${debtClass}">${rep.debt.toFixed(2)}</div>
+                    <div class="text-xs text-slate-400">${debtText}</div>
+                </div>
+            </div>`;
+    }).join('');
+    document.getElementById('totalDebt').textContent = totalDebt.toFixed(2);
+}
+
+function searchDebt() {
+    const repId = document.getElementById('searchRep').value;
+    const resultDiv = document.getElementById('searchResult');
+    const amountDiv = document.getElementById('searchDebtAmount');
+    const statusDiv = document.getElementById('searchDebtStatus');
+    if (!repId) { resultDiv.classList.add('hidden'); return; }
+    const debt = getRepDebt(repId);
+    const rep = reps.find(r => r.id === repId);
+    resultDiv.classList.remove('hidden');
+    amountDiv.textContent = debt.toFixed(2) + ' ريال';
+    if (debt > 0) { amountDiv.className = 'text-3xl font-bold debt-positive'; statusDiv.textContent = 'مديون على النظام'; }
+    else if (debt < 0) { amountDiv.className = 'text-3xl font-bold debt-negative'; statusDiv.textContent = 'له رصيد إضافي'; }
+    else { amountDiv.className = 'text-3xl font-bold debt-zero'; statusDiv.textContent = 'لا يوجد دين'; }
+}
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    renderDaily();
+}
+
+function renderDaily() {
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    document.getElementById('monthLabel').textContent = `${monthNames[currentMonth]} ${currentYear}`;
+    if (reps.length === 0) { document.getElementById('dailyTable').innerHTML = '<div class="text-center py-12 text-slate-400">سجل مناديب أولاً</div>'; return; }
+    let html = `<div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="overflow-x-auto"><table class="w-full"><thead><tr class="bg-slate-50"><th class="sticky right-0 bg-slate-50 px-4 py-3 text-right border-l z-10">المندوب</th>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = d === new Date().getDate() && currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
+        html += `<th class="px-2 py-3 text-center text-xs ${isToday ? 'bg-blue-100 text-blue-700' : ''}">${d}</th>`;
+    }
+    html += `<th class="px-4 py-3 text-center font-bold text-emerald-600 bg-emerald-50">الإجمالي</th></tr></thead><tbody>`;
+    reps.forEach((rep, idx) => {
+        let total = 0;
+        html += `<tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}"><td class="sticky right-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} px-4 py-2 border-l z-10 font-semibold">${rep.name}</td>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || '';
+            if (val) total += parseInt(val);
+            const isToday = d === new Date().getDate() && currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
+            html += `<td class="px-1 py-1 ${isToday ? 'bg-blue-50' : ''}"><input type="number" id="order_${rep.id}_${d}" value="${val}" class="w-full text-center py-2 text-sm border-0 bg-transparent focus:bg-white focus:ring-2 focus:ring-blue-400 rounded" placeholder="0" min="0"></td>`;
+        }
+        html += `<td class="px-4 py-2 text-center font-bold text-emerald-600">${total}</td></tr>`;
+    });
+    html += '</tbody></table></div></div>';
+    document.getElementById('dailyTable').innerHTML = html;
+}
+
+function saveOrders() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    let hasData = false;
+    reps.forEach(rep => {
+        for (let d = 1; d <= daysInMonth; d++) {
+            const input = document.getElementById(`order_${rep.id}_${d}`);
+            if (input && input.value) {
+                const val = parseInt(input.value) || 0;
+                if (val > 0) {
+                    hasData = true;
+                    const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                    if (!orders[dateStr]) orders[dateStr] = {};
+                    orders[dateStr][rep.id] = val;
+                }
+            }
+        }
+    });
+    if (!hasData) { showToast('أدخل طلبات أولاً', 'warning'); return; }
+    saveOrdersData(); renderDaily(); showToast('تم الحفظ بنجاح', 'success');
+}
+
+function renderStats() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const stats = reps.map(rep => {
+        let total = 0, activeDays = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
+            total += parseInt(val); if (val > 0) activeDays++;
+        }
+        return {...rep, total, activeDays, avg: activeDays > 0 ? (total / activeDays).toFixed(1) : 0};
+    });
+    const sorted = [...stats].sort((a, b) => b.total - a.total);
+    const grandTotal = stats.reduce((s, r) => s + r.total, 0);
+    const active = stats.filter(r => r.total > 0).length;
+    document.getElementById('totalOrders').textContent = grandTotal;
+    document.getElementById('avgMonthly').textContent = stats.length > 0 ? (grandTotal / stats.length).toFixed(1) : 0;
+    document.getElementById('avgDaily').textContent = grandTotal > 0 ? (grandTotal / 30).toFixed(1) : 0;
+    document.getElementById('activeReps').textContent = active;
+    document.getElementById('top5List').innerHTML = sorted.slice(0, 5).map((r, i) => `
+        <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+            <div class="w-10 h-10 rounded-full ${i === 0 ? 'bg-yellow-400' : 'bg-blue-500'} text-white flex items-center justify-center font-bold">${i + 1}</div>
+            <div class="flex-1"><div class="font-bold">${r.name}</div><div class="text-sm text-slate-500">${r.activeDays} يوم نشط</div></div>
+            <div class="font-bold text-xl text-slate-700">${r.total}</div>
+        </div>`).join('');
+    document.getElementById('bottom5List').innerHTML = sorted.slice(-5).reverse().map(r => `
+        <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+            <div class="w-10 h-10 rounded-full bg-red-400 text-white flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></div>
+            <div class="flex-1"><div class="font-bold">${r.name}</div><div class="text-sm text-slate-500">${r.activeDays} يوم نشط</div></div>
+            <div class="font-bold text-xl text-slate-700">${r.total}</div>
+        </div>`).join('');
+}
+
+// ========== دوال إدارة السيارات ==========
+
+// cars loaded from Firebase
+let carsFilter = 'all';
+
+// saveCars uses Firebase saveCars() defined above
+
+function initCarsPage() {
+    const carRep = document.getElementById('carRep');
+    carRep.innerHTML = '<option value="">اختر المندوب</option>';
+    reps.forEach(rep => {
+        carRep.innerHTML += `<option value="${rep.id}">${rep.name} (${rep.id})</option>`;
+    });
+    document.getElementById('carPickup').value = new Date().toISOString().split('T')[0];
+    renderCars();
+}
+
+function addCar() {
+    const repId = document.getElementById('carRep').value;
+    const office = document.getElementById('carOffice').value.trim();
+    const type = document.getElementById('carType').value.trim();
+    const plate = document.getElementById('carPlate').value.trim();
+    const rent = parseFloat(document.getElementById('carRent').value);
+    const pickup = document.getElementById('carPickup').value;
+    const returnDate = document.getElementById('carReturn').value;
+    const notes = document.getElementById('carNotes').value.trim();
+
+    if (!repId || !office || !type || !plate || !rent || !pickup) {
+        showToast('الرجاء ملء جميع الحقول الإلزامية', 'error'); return;
+    }
+
+    const rep = reps.find(r => r.id === repId);
+    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
+
+    if (returnDate && new Date(returnDate) <= new Date(pickup)) {
+        showToast('تاريخ التسليم يجب أن يكون بعد تاريخ الاستلام', 'error'); return;
+    }
+
+    cars.push({
+        id: Date.now().toString(),
+        repId, repName: rep.name,
+        office, type, plate, rent, pickup, return: returnDate, notes,
+        status: 'active',
+        createdAt: new Date().toISOString()
+    });
+
+    saveCars(); document.getElementById('carForm').reset();
+    document.getElementById('carPickup').value = new Date().toISOString().split('T')[0];
+    renderCars(); showToast('تم تسجيل السيارة بنجاح', 'success');
+}
+
+function returnCar(carId) {
+    const car = cars.find(c => c.id === carId);
+    if (!car) return;
+    document.getElementById('returnCarId').value = carId;
+    document.getElementById('returnRepName').value = car.repName;
+    document.getElementById('returnCarType').value = car.type;
+    document.getElementById('returnDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('returnNotes').value = '';
+    document.getElementById('returnModal').classList.add('active');
+}
+
+function closeReturnModal() {
+    document.getElementById('returnModal').classList.remove('active');
+}
+
+function saveReturn() {
+    const carId = document.getElementById('returnCarId').value;
+    const returnDate = document.getElementById('returnDate').value;
+    const returnNotes = document.getElementById('returnNotes').value.trim();
+
+    if (!returnDate) { showToast('الرجاء إدخال تاريخ التسليم الفعلي', 'error'); return; }
+
+    const index = cars.findIndex(c => c.id === carId);
+    if (index !== -1) {
+        cars[index].status = 'returned';
+        cars[index].actualReturn = returnDate;
+        if (returnNotes) cars[index].returnNotes = returnNotes;
+        saveCars(); renderCars(); closeReturnModal(); showToast('تم تسليم السيارة بنجاح', 'success');
+    }
+}
+
+function deleteCar(carId) {
+    if (!confirm('هل أنت متأكد من حذف بيانات السيارة؟')) return;
+    cars = cars.filter(c => c.id !== carId); saveCars(); renderCars(); showToast('تم الحذف', 'success');
+}
+
+function filterCars(filter) {
+    carsFilter = filter;
+    document.querySelectorAll('[id^="filter"]').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('bg-slate-200', 'text-slate-700');
+    });
+    const activeBtn = document.getElementById('filter' + filter.charAt(0).toUpperCase() + filter.slice(1));
+    activeBtn.classList.remove('bg-slate-200', 'text-slate-700');
+    activeBtn.classList.add('bg-blue-600', 'text-white');
+    renderCars();
+}
+
+function renderCars() {
+    const tbody = document.getElementById('carsTableBody');
+    const emptyDiv = document.getElementById('carsEmpty');
+
+    let filtered = cars;
+    if (carsFilter !== 'all') filtered = cars.filter(c => c.status === carsFilter);
+
+    // Sort by pickup date descending
+    filtered.sort((a, b) => new Date(b.pickup) - new Date(a.pickup));
+
+    if (filtered.length === 0) { tbody.innerHTML = ''; emptyDiv.classList.remove('hidden'); return; }
+    emptyDiv.classList.add('hidden');
+
+    const now = new Date();
+    tbody.innerHTML = filtered.map(car => {
+        const isReturned = car.status === 'returned';
+        const hasReturnDate = car.return && car.return !== '';
+        let daysLeft = null;
+        let isOverdue = false;
+        let isNear = false;
+
+        if (hasReturnDate && !isReturned) {
+            const returnDateObj = new Date(car.return);
+            daysLeft = Math.ceil((returnDateObj - now) / (1000 * 60 * 60 * 24));
+            isOverdue = daysLeft < 0;
+            isNear = daysLeft >= 0 && daysLeft <= 7;
+        }
+
+        let statusBadge = '';
+        if (isReturned) statusBadge = '<span class="px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-600 font-bold">مُسلّمة</span>';
+        else if (isOverdue) statusBadge = `<span class="px-3 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">متأخرة (${Math.abs(daysLeft)} يوم)</span>`;
+        else if (isNear) statusBadge = `<span class="px-3 py-1 rounded-full text-xs bg-orange-100 text-orange-700 font-bold">تنتهي قريباً (${daysLeft} يوم)</span>`;
+        else if (hasReturnDate) statusBadge = `<span class="px-3 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">نشطة (${daysLeft} يوم)</span>`;
+        else statusBadge = '<span class="px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-700 font-bold">نشطة (بدون تاريخ تسليم)</span>';
+
+        return `
+            <tr class="border-b hover:bg-slate-50 transition ${isOverdue ? 'bg-red-50' : ''}">
+                <td class="px-4 py-3 font-semibold text-slate-800">${car.repName}</td>
+                <td class="px-4 py-3 text-slate-600">${car.office}</td>
+                <td class="px-4 py-3 text-slate-700">${car.type}</td>
+                <td class="px-4 py-3 text-slate-600 font-mono">${car.plate}</td>
+                <td class="px-4 py-3 font-bold text-slate-700 font-mono">${parseFloat(car.rent).toFixed(2)} ريال</td>
+                <td class="px-4 py-3 text-slate-600">${car.pickup}</td>
+                <td class="px-4 py-3 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-600'}">${car.return || '<span class="text-slate-400 italic">غير محدد</span>'}</td>
+                <td class="px-4 py-3 text-center">${statusBadge}</td>
+                <td class="px-4 py-3 text-slate-500 text-sm">${car.notes || '-'}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="openEditCarModal('${car.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    ${!isReturned ? `<button onclick="returnCar('${car.id}')" class="text-emerald-600 hover:bg-emerald-50 px-3 py-2 rounded-lg transition mr-1 text-sm font-bold" title="تسليم"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>` : ''}
+                    <button onclick="deleteCar('${car.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function exportCarsList() {
+    if (cars.length === 0) { showToast('لا توجد سيارات مسجلة', 'warning'); return; }
+    const data = cars.map(car => [
+        car.repName, car.office, car.type, car.plate,
+        parseFloat(car.rent).toFixed(2), car.pickup, car.return,
+        car.status === 'active' ? 'نشطة' : 'مُسلّمة',
+        car.notes || '-'
+    ]);
+    exportToExcel(data, 'السيارات', 'قائمة_السيارات',
+        ['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'ملاحظات']);
+}
+
+function openEditCarModal(carId) {
+    const car = cars.find(c => c.id === carId);
+    if (!car) return;
+    document.getElementById('editCarId').value = carId;
+    document.getElementById('editCarRepName').value = car.repName;
+    document.getElementById('editCarType').value = car.type;
+    document.getElementById('editCarPlate').value = car.plate;
+    document.getElementById('editCarReturn').value = car.return || '';
+    document.getElementById('editCarNotes').value = car.notes || '';
+    document.getElementById('editCarModal').classList.add('active');
+}
+
+function closeCarModal() {
+    document.getElementById('editCarModal').classList.remove('active');
+}
+
+function saveCarEdit() {
+    const carId = document.getElementById('editCarId').value;
+    const newReturn = document.getElementById('editCarReturn').value;
+    const newNotes = document.getElementById('editCarNotes').value.trim();
+
+    const index = cars.findIndex(c => c.id === carId);
+    if (index !== -1) {
+        const car = cars[index];
+        // Validate: if return date exists, it must be after pickup
+        if (newReturn && new Date(newReturn) <= new Date(car.pickup)) {
+            showToast('تاريخ التسليم يجب أن يكون بعد تاريخ الاستلام (' + car.pickup + ')', 'error');
+            return;
+        }
+        cars[index].return = newReturn || '';
+        cars[index].notes = newNotes;
+        cars[index].updatedAt = new Date().toISOString();
+        saveCars(); renderCars(); closeCarModal();
+        showToast(newReturn ? 'تم تحديث تاريخ التسليم بنجاح' : 'تم حذف تاريخ التسليم', 'success');
+    }
+}
+
+function exportCarsFull() {
+    const wb = XLSX.utils.book_new();
+    if (cars.length > 0) {
+        const carsData = cars.map(car => [
+            car.repName, car.office, car.type, car.plate,
+            parseFloat(car.rent).toFixed(2), car.pickup, car.return,
+            car.status === 'active' ? 'نشطة' : 'مُسلّمة',
+            car.actualReturn || '-', car.notes || '-'
+        ]);
+        const ws = XLSX.utils.aoa_to_sheet([
+            ['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'تاريخ التسليم الفعلي', 'ملاحظات'],
+            ...carsData
+        ]);
+        ws['!rtl'] = true;
+        ws['!cols'] = [{wch:20}, {wch:20}, {wch:20}, {wch:15}, {wch:12}, {wch:15}, {wch:15}, {wch:12}, {wch:15}, {wch:30}];
+        XLSX.utils.book_append_sheet(wb, ws, 'السيارات');
+    }
+    XLSX.writeFile(wb, 'تقرير_السيارات_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير التقرير', 'success');
+}
+
+// Update showPage to handle cars and bank pages
+const originalShowPage = showPage;
+showPage = function(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(page + 'Page').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('nav_' + page).classList.add('active');
+    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+    if (page === 'daily') renderDaily();
+    if (page === 'stats') renderStats();
+    if (page === 'home') renderHomeStats();
+    if (page === 'loans') initLoansPage();
+    if (page === 'cars') initCarsPage();
+    if (page === 'bank') initBankPage();
+};
+
+// ========== دوال إدارة البنك ==========
+
+// bankEntries loaded from Firebase
+
+// saveBank uses Firebase saveBank() defined above
+
+function initBankPage() {
+    document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
+    updateBalancePreview();
+    renderBank();
+}
+
+function addBankEntry() {
+    const date = document.getElementById('bankDate').value;
+    const desc = document.getElementById('bankDesc').value.trim();
+    const debit = parseFloat(document.getElementById('bankDebit').value) || 0;
+    const credit = parseFloat(document.getElementById('bankCredit').value) || 0;
+    const notes = document.getElementById('bankNotes').value.trim();
+
+    if (!date || !desc) {
+        showToast('الرجاء ملء الحقول الإلزامية', 'error'); return;
+    }
+
+    if (debit === 0 && credit === 0) {
+        showToast('يجب إدخال قيمة في مدين أو دائن', 'error'); return;
+    }
+
+    if (debit > 0 && credit > 0) {
+        showToast('لا يمكن إدخال قيمة في مدين ودائن معاً', 'error'); return;
+    }
+
+    // Auto-calculate balance
+    const sorted = [...bankEntries].sort((a, b) => {
+        const d = new Date(a.date) - new Date(b.date);
+        return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    const lastBalance = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
+    const balance = lastBalance + credit - debit;
+
+    bankEntries.push({
+        id: Date.now().toString(),
+        date, desc, debit, credit, balance, notes,
+        createdAt: new Date().toISOString()
+    });
+
+    saveBank(); document.getElementById('bankForm').reset();
+    document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
+    updateBalancePreview();
+    renderBank(); showToast('تم تسجيل العملية بنجاح', 'success');
+}
+
+// Auto-update balance preview when typing
+function updateBalancePreview() {
+    const debit = parseFloat(document.getElementById('bankDebit').value) || 0;
+    const credit = parseFloat(document.getElementById('bankCredit').value) || 0;
+
+    const sorted = [...bankEntries].sort((a, b) => {
+        const d = new Date(a.date) - new Date(b.date);
+        return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    const lastBalance = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
+    const newBalance = lastBalance + credit - debit;
+
+    document.getElementById('bankBalancePreview').textContent = newBalance.toFixed(2);
+    document.getElementById('bankBalance').value = newBalance;
+}
+
+// Filter bank table
+let bankFilteredEntries = [];
+
+function filterBankTable() {
+    const searchTerm = document.getElementById('bankSearch').value.trim().toLowerCase();
+    const filterType = document.getElementById('bankFilter').value;
+
+    bankFilteredEntries = bankEntries.filter(entry => {
+        // Search filter
+        const matchesSearch = !searchTerm || 
+            entry.desc.toLowerCase().includes(searchTerm) || 
+            (entry.notes && entry.notes.toLowerCase().includes(searchTerm)) ||
+            entry.date.includes(searchTerm);
+
+        // Type filter
+        let matchesType = true;
+        if (filterType === 'debit') matchesType = entry.debit > 0;
+        else if (filterType === 'credit') matchesType = entry.credit > 0;
+
+        return matchesSearch && matchesType;
+    });
+
+    renderBankTable();
+}
+
+function renderBankTable() {
+    const tbody = document.getElementById('bankTableBody');
+    const emptyDiv = document.getElementById('bankEmpty');
+    const entriesToRender = bankFilteredEntries.length > 0 || document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all' 
+        ? bankFilteredEntries 
+        : [...bankEntries];
+
+    if (entriesToRender.length === 0) {
+        tbody.innerHTML = '';
+        if (document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all') {
+            emptyDiv.classList.remove('hidden');
+            emptyDiv.querySelector('p').textContent = 'لا توجد نتائج مطابقة للبحث';
+        } else {
+            emptyDiv.classList.remove('hidden');
+            emptyDiv.querySelector('p').textContent = 'لا توجد عمليات مسجلة';
+        }
+        return;
+    }
+
+    emptyDiv.classList.add('hidden');
+
+    // Sort by date ascending
+    const sorted = [...entriesToRender].sort((a, b) => {
+        const d = new Date(a.date) - new Date(b.date);
+        return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    let totalDebit = 0, totalCredit = 0;
+
+    tbody.innerHTML = sorted.map((entry, idx) => {
+        totalDebit += entry.debit;
+        totalCredit += entry.credit;
+
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-4 py-3 text-slate-500 text-sm">${idx + 1}</td>
+                <td class="px-4 py-3 text-slate-700">${entry.date}</td>
+                <td class="px-4 py-3 font-semibold text-slate-800">${entry.desc}</td>
+                <td class="px-4 py-3 font-bold text-red-600 font-mono">${entry.debit > 0 ? entry.debit.toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 font-bold text-emerald-600 font-mono">${entry.credit > 0 ? entry.credit.toFixed(2) : '-'}</td>
+                <td class="px-4 py-3 font-bold text-blue-700 font-mono">${entry.balance.toFixed(2)}</td>
+                <td class="px-4 py-3 text-slate-500 text-sm">${entry.notes || '-'}</td>
+                <td class="px-4 py-3 text-center">
+                    <button onclick="deleteBankEntry('${entry.id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded transition"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    // Update summary based on filtered or all entries
+    const currentBal = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
+    document.getElementById('currentBalance').textContent = currentBal.toFixed(2);
+    document.getElementById('totalDebit').textContent = totalDebit.toFixed(2);
+    document.getElementById('totalCredit').textContent = totalCredit.toFixed(2);
+    document.getElementById('totalEntries').textContent = entriesToRender.length;
+}
+
+function deleteBankEntry(entryId) {
+    if (!confirm('هل أنت متأكد من حذف هذه العملية؟')) return;
+    bankEntries = bankEntries.filter(e => e.id !== entryId);
+    saveBank(); 
+    // Re-apply filter if active
+    if (document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all') {
+        filterBankTable();
+    } else {
+        renderBank();
+    }
+    showToast('تم حذف العملية', 'success');
+}
+
+function clearAllBank() {
+    if (!confirm('هل أنت متأكد من مسح جميع العمليات البنكية؟')) return;
+    bankEntries = []; saveBank(); 
+    document.getElementById('bankSearch').value = '';
+    document.getElementById('bankFilter').value = 'all';
+    renderBank(); 
+    updateBalancePreview();
+    showToast('تم مسح جميع العمليات', 'success');
+}
+
+function renderBank() {
+    bankFilteredEntries = []; // Reset filter
+    document.getElementById('bankSearch').value = '';
+    document.getElementById('bankFilter').value = 'all';
+    renderBankTable();
+}
+
+function exportBankHistory() {
+    if (bankEntries.length === 0) { showToast('لا توجد عمليات مسجلة', 'warning'); return; }
+    const sorted = [...bankEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const data = sorted.map((e, i) => [
+        i + 1, e.date, e.desc,
+        e.debit > 0 ? e.debit.toFixed(2) : '-',
+        e.credit > 0 ? e.credit.toFixed(2) : '-',
+        e.balance.toFixed(2),
+        e.notes || '-'
+    ]);
+    exportToExcel(data, 'سجل البنك', 'سجل_البنك',
+        ['#', 'التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد', 'ملاحظات']);
+}
+
+function exportBankFull() {
+    const wb = XLSX.utils.book_new();
+    if (bankEntries.length > 0) {
+        const sorted = [...bankEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
+        let totalDebit = 0, totalCredit = 0;
+        const data = sorted.map((e, i) => {
+            totalDebit += e.debit; totalCredit += e.credit;
+            return [i + 1, e.date, e.desc, e.debit > 0 ? e.debit.toFixed(2) : '-', e.credit > 0 ? e.credit.toFixed(2) : '-', e.balance.toFixed(2), e.notes || '-'];
+        });
+        data.push(['', '', '', '', '', '', '']);
+        data.push(['', '', 'الإجمالي', totalDebit.toFixed(2), totalCredit.toFixed(2), sorted[sorted.length-1].balance.toFixed(2), '']);
+        const ws = XLSX.utils.aoa_to_sheet([['#', 'التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد', 'ملاحظات'], ...data]);
+        ws['!rtl'] = true;
+        ws['!cols'] = [{wch:5}, {wch:12}, {wch:30}, {wch:12}, {wch:12}, {wch:12}, {wch:25}];
+        XLSX.utils.book_append_sheet(wb, ws, 'سجل البنك');
+    }
+    XLSX.writeFile(wb, 'تقرير_البنك_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير التقرير', 'success');
+}
+
+function printPage(page) {
+    // Hide sidebar for clean print
+    const sidebar = document.querySelector('.sidebar');
+    const main = document.querySelector('main');
+
+    // Add print styles
+    const printStyles = document.createElement('style');
+    printStyles.id = 'printStyles';
+    printStyles.innerHTML = `
+        @media print {
+            .sidebar { display: none !important; }
+            main { margin: 0 !important; padding: 10px !important; width: 100% !important; }
+            .export-btn, .print-btn, .export-menu, button[onclick^="delete"], button[onclick^="openEdit"], button[onclick^="returnCar"] { display: none !important; }
+            .modal { display: none !important; }
+            input, select { border: 1px solid #ccc !important; }
+            body { background: white !important; }
+            .page { display: none !important; }
+            #${page}Page { display: block !important; }
+            .kpi-card, .bg-white { break-inside: avoid; }
+            table { font-size: 10px !important; }
+            th, td { padding: 4px 6px !important; }
+        }
+    `;
+    document.head.appendChild(printStyles);
+
+    // Ensure the target page is active for print
+    const currentActive = document.querySelector('.page.active');
+    if (currentActive) currentActive.classList.remove('active');
+    document.getElementById(page + 'Page').classList.add('active');
+
+    window.print();
+
+    // Cleanup
+    setTimeout(() => {
+        const ps = document.getElementById('printStyles');
+        if (ps) ps.remove();
+        if (currentActive) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            currentActive.classList.add('active');
+        }
+    }, 100);
+}
+
+// ========== دوال بوابة المندوب ==========
+let currentPortalRep = null;
+
+function portalLogin() {
+    const id = document.getElementById('portalLoginId').value.trim();
+    if (!id) { showToast('أدخل الرقم التعريفي', 'error'); return; }
+
+    const rep = reps.find(r => r.id === id);
+    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
+
+    currentPortalRep = rep;
+    document.getElementById('portalLogin').classList.add('hidden');
+    document.getElementById('portalDashboard').classList.remove('hidden');
+
+    // Set basic info
+    document.getElementById('portalName').textContent = rep.name;
+    document.getElementById('portalId').textContent = rep.id;
+    document.getElementById('portalAvatar').textContent = rep.name.charAt(0);
+    document.getElementById('portalIqama').textContent = rep.iqama;
+    document.getElementById('portalExpiry').textContent = rep.expiry;
+
+    // Set default date to today
+    document.getElementById('portalOrderDate').value = new Date().toISOString().split('T')[0];
+
+    portalRefresh();
+    showToast('تم تسجيل الدخول بنجاح', 'success');
+}
+
+function portalLogout() {
+    currentPortalRep = null;
+    document.getElementById('portalLogin').classList.remove('hidden');
+    document.getElementById('portalDashboard').classList.add('hidden');
+    document.getElementById('portalLoginId').value = '';
+    showToast('تم تسجيل الخروج', 'success');
+}
+
+function portalRefresh() {
+    if (!currentPortalRep) return;
+
+    const repId = currentPortalRep.id;
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    // Today's orders
+    const todayOrders = (orders[today] && orders[today][repId]) || 0;
+    document.getElementById('portalOrdersToday').textContent = todayOrders;
+
+    // Monthly orders
+    let monthTotal = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        monthTotal += (orders[dateStr] && orders[dateStr][repId]) || 0;
+    }
+    document.getElementById('portalOrdersMonth').textContent = monthTotal;
+    document.getElementById('portalMyOrders').textContent = monthTotal;
+
+    // Debt
+    const debt = getRepDebt(repId);
+    const debtEl = document.getElementById('portalDebt');
+    debtEl.textContent = Math.abs(debt).toFixed(2);
+    debtEl.className = 'text-3xl font-bold ' + (debt > 0 ? 'text-red-400' : debt < 0 ? 'text-emerald-400' : 'text-white');
+
+    // Rank
+    const allStats = reps.map(r => {
+        let total = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            total += (orders[dateStr] && orders[dateStr][r.id]) || 0;
+        }
+        return {id: r.id, total};
+    }).sort((a, b) => b.total - a.total);
+
+    const rank = allStats.findIndex(s => s.id === repId) + 1;
+    document.getElementById('portalRank').textContent = rank > 0 ? '#' + rank : '-';
+
+    // Progress circle (goal: 500)
+    const goal = 500;
+    const percent = Math.min((monthTotal / goal) * 100, 100);
+    const circle = document.getElementById('portalProgressCircle');
+    const circumference = 2 * Math.PI * 54; // r=54
+    const offset = circumference - (percent / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+    document.getElementById('portalProgressPercent').textContent = Math.round(percent) + '%';
+
+    // Iqama days left
+    const expiryDate = new Date(currentPortalRep.expiry);
+    const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+    const daysEl = document.getElementById('portalDaysLeft');
+    daysEl.textContent = daysLeft < 0 ? 'منتهية!' : daysLeft + ' يوم';
+    daysEl.className = 'font-bold ' + (daysLeft < 30 ? 'text-red-500' : daysLeft < 60 ? 'text-orange-500' : 'text-emerald-500');
+
+    // Iqama alert
+    const alertDiv = document.getElementById('portalIqamaAlert');
+    if (daysLeft < 0) {
+        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-red-100 text-red-700';
+        alertDiv.textContent = '⚠️ الإقامة منتهية! تواصل مع الإدارة فوراً';
+        alertDiv.classList.remove('hidden');
+    } else if (daysLeft <= 30) {
+        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-orange-100 text-orange-700';
+        alertDiv.textContent = '⏰ الإقامة تنتهي قريباً! تجديد عاجل';
+        alertDiv.classList.remove('hidden');
+    } else {
+        alertDiv.classList.add('hidden');
+    }
+
+    // Car info
+    const myCar = cars.find(c => c.repId === repId && c.status === 'active');
+    const carDiv = document.getElementById('portalCarInfo');
+    if (myCar) {
+        const returnDate = myCar.return ? new Date(myCar.return) : null;
+        const carDaysLeft = returnDate ? Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24)) : null;
+        carDiv.innerHTML = `
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600">السيارة</span>
+                <span class="font-bold">${myCar.type}</span>
+            </div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600">رقم اللوحة</span>
+                <span class="font-bold font-mono">${myCar.plate}</span>
+            </div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600">مكتب التأجير</span>
+                <span class="font-bold">${myCar.office}</span>
+            </div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600">الإيجار الشهري</span>
+                <span class="font-bold">${parseFloat(myCar.rent).toFixed(2)} ريال</span>
+            </div>
+            ${returnDate ? `
+            <div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl">
+                <span class="text-slate-600">تاريخ التسليم</span>
+                <span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : ''}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span>
+            </div>` : ''}
+        `;
+    } else {
+        carDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد سيارة نشطة مسجلة</div>';
+    }
+
+    // Recent orders (last 10)
+    const recentDiv = document.getElementById('portalRecentOrders');
+    const myOrders = [];
+    for (let d = daysInMonth; d >= 1; d--) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const val = (orders[dateStr] && orders[dateStr][repId]) || 0;
+        if (val > 0) myOrders.push({date: dateStr, count: val});
+    }
+
+    if (myOrders.length === 0) {
+        recentDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة هذا الشهر</div>';
+    } else {
+        recentDiv.innerHTML = myOrders.slice(0, 10).map(o => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600 text-sm">${o.date}</span>
+                <span class="font-bold text-blue-600">${o.count} طلب</span>
+            </div>
+        `).join('');
+    }
+
+    // Achievements
+    const achDiv = document.getElementById('portalAchievements');
+    const achievements = [];
+    if (monthTotal >= 500) achievements.push({icon: '🏆', text: '500+ طلب', color: 'achievement-badge'});
+    if (monthTotal >= 300) achievements.push({icon: '🥈', text: '300+ طلب', color: 'achievement-badge'});
+    if (monthTotal >= 100) achievements.push({icon: '🥉', text: '100+ طلب', color: 'achievement-badge'});
+    if (todayOrders >= 20) achievements.push({icon: '🔥', text: '20+ اليوم', color: 'rank-badge'});
+    if (rank === 1) achievements.push({icon: '👑', text: 'المركز الأول', color: 'rank-badge'});
+    if (rank <= 3 && rank > 0) achievements.push({icon: '🌟', text: 'Top 3', color: 'rank-badge'});
+    if (debt === 0) achievements.push({icon: '✅', text: 'خالي من الديون', color: 'bg-emerald-500'});
+
+    if (achievements.length === 0) {
+        achDiv.innerHTML = '<span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>';
+    } else {
+        achDiv.innerHTML = achievements.map(a => `
+            <span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">
+                ${a.icon} ${a.text}
+            </span>
+        `).join('');
+    }
+}
+
+function portalSaveOrder() {
+    if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
+
+    const date = document.getElementById('portalOrderDate').value;
+    const count = parseInt(document.getElementById('portalOrderCount').value) || 0;
+
+    if (!date || count < 0) { showToast('أدخل التاريخ والعدد بشكل صحيح', 'error'); return; }
+    if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
+
+    if (!orders[date]) orders[date] = {};
+    orders[date][currentPortalRep.id] = count;
+    saveOrdersData();
+
+    document.getElementById('portalOrderCount').value = '';
+    portalRefresh();
+    showToast('تم حفظ الطلبات بنجاح', 'success');
+}
+
+// Override showPage to handle portal
+const _originalShowPage = showPage;
+showPage = function(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(page + 'Page').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('nav_' + page).classList.add('active');
+    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+    if (page === 'daily') renderDaily();
+    if (page === 'stats') renderStats();
+    if (page === 'home') renderHomeStats();
+    if (page === 'loans') initLoansPage();
+    if (page === 'cars') initCarsPage();
+    if (page === 'bank') initBankPage();
+    if (page === 'portal') {
+        if (currentPortalRep) portalRefresh();
+    }
+};
+
+// Firebase listeners handle initial render
+</script>
+
+
+<!-- نافذة تسليم السيارة -->
+<div id="returnModal" class="modal">
+    <div class="modal-content shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-slate-800">تسليم السيارة</h3>
+            <button onclick="closeReturnModal()" class="text-slate-400 hover:text-slate-600 text-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <form id="returnForm" onsubmit="event.preventDefault(); saveReturn();" class="space-y-4">
+            <input type="hidden" id="returnCarId">
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">المندوب</label>
+                <input type="text" id="returnRepName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">نوع السيارة</label>
+                <input type="text" id="returnCarType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">تاريخ التسليم الفعلي *</label>
+                <input type="date" id="returnDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">ملاحظات التسليم</label>
+                <input type="text" id="returnNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="حالة السيارة، عداد الكيلومترات، إلخ...">
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> تأكيد التسليم
+                </button>
+                <button type="button" onclick="closeReturnModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>
