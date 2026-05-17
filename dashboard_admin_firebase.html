@@ -1373,25 +1373,53 @@ function addRep() {
     const iqama = document.getElementById('repIqama').value.trim();
     const expiry = document.getElementById('repExpiry').value;
     const password = document.getElementById('repPassword').value.trim();
-    if (!name || !id || !iqama || !expiry || !password) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
-    if (reps.find(r => r.id === id)) { showToast('هذا المعرف مستخدم مسبقاً', 'error'); return; }
-    reps.push({id, name, iqama, expiry, createdAt: new Date().toISOString()});
-    // حفظ كلمة المرور في repPasswords + Firebase
+
+    if (!name || !id || !iqama || !expiry || !password) { 
+        showToast('الرجاء ملء جميع الحقول', 'error'); 
+        return; 
+    }
+
+    // Ensure reps is an array
+    if (!Array.isArray(reps)) { 
+        console.error('reps is not array:', reps); 
+        reps = []; 
+    }
+
+    // Check if ID exists
+    const existing = reps.find(r => r && r.id === id);
+    if (existing) { 
+        showToast('هذا المعرف (' + id + ') مستخدم مسبقاً للمندوب: ' + existing.name, 'error'); 
+        return; 
+    }
+
+    // Add new rep
+    const newRep = {id, name, iqama, expiry, createdAt: new Date().toISOString()};
+    reps.push(newRep);
+
+    // Save password locally
     let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     repPasswords[id] = password;
     localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    // SYNC PASSWORDS TO FIREBASE
-    syncPasswordsToFirebase().then(() => {
-        saveReps(); document.getElementById('repForm').reset(); 
+
+    // Save everything to Firebase
+    Promise.all([
+        syncRepsToFirebase(),
+        syncPasswordsToFirebase()
+    ]).then(() => {
+        document.getElementById('repForm').reset(); 
         document.getElementById('repSearch').value = '';
-        renderReps(); renderHomeStats(); 
+        renderReps(); 
+        renderHomeStats(); 
         showToast('تم تسجيل المندوب ورفع البيانات للسحابة بنجاح', 'success');
     }).catch(err => {
-        console.error('Password sync failed:', err);
-        saveReps(); document.getElementById('repForm').reset();
+        console.error('Firebase sync failed:', err);
+        // Still save locally as fallback
+        localStorage.setItem('reps', JSON.stringify(reps));
+        document.getElementById('repForm').reset();
         document.getElementById('repSearch').value = '';
-        renderReps(); renderHomeStats();
-        showToast('تم التسجيل محلياً لكن فشل رفع الباسورد للسحابة', 'warning');
+        renderReps(); 
+        renderHomeStats();
+        showToast('تم التسجيل محلياً فقط - تأكد من الاتصال بالسحابة', 'warning');
     });
 }
 
@@ -2553,7 +2581,23 @@ function syncPasswordsToFirebase() {
 function loadRepsFromFirebase() {
   return db.ref('reps').once('value').then(snap => {
     const data = snap.val();
-    if (data) { reps = data; localStorage.setItem('reps', JSON.stringify(reps)); }
+    if (data) { 
+      // Ensure it's an array (Firebase might return object)
+      if (Array.isArray(data)) {
+        reps = data;
+      } else if (typeof data === 'object') {
+        reps = Object.values(data);
+      } else {
+        reps = [];
+      }
+      localStorage.setItem('reps', JSON.stringify(reps)); 
+    } else {
+      // No data in Firebase, keep local or init empty
+      reps = JSON.parse(localStorage.getItem('reps') || '[]');
+    }
+  }).catch(err => {
+    console.error('loadRepsFromFirebase error:', err);
+    reps = JSON.parse(localStorage.getItem('reps') || '[]');
   });
 }
 function loadOrdersFromFirebase() {
@@ -2676,6 +2720,13 @@ saveBank = function() {
 
 // ===== INIT =====
 function initFirebase() {
+  // First ensure reps is initialized as array
+  reps = JSON.parse(localStorage.getItem('reps') || '[]');
+  orders = JSON.parse(localStorage.getItem('orders') || '{}');
+  loans = JSON.parse(localStorage.getItem('loans') || '[]');
+  cars = JSON.parse(localStorage.getItem('cars') || '[]');
+  bankEntries = JSON.parse(localStorage.getItem('bankEntries') || '[]');
+
   Promise.all([
     loadRepsFromFirebase(),
     loadOrdersFromFirebase(),
