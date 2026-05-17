@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -58,11 +59,6 @@
     </style>
 </head>
 <body>
-<div id="firebaseLoading" style="position:fixed;inset:0;background:#f1f5f9;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;">
-    <div style="width:60px;height:60px;border:4px solid #e2e8f0;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;"></div>
-    <p style="margin-top:20px;color:#64748b;font-weight:600;">جاري الاتصال بقاعدة البيانات...</p>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-</div>
 
 <div id="editCarModal" class="modal">
     <div class="modal-content shadow-2xl">
@@ -1044,20 +1040,11 @@
 </div>
 
 <script>
-let reps = [];
-let orders = {};
-let loans = [];
-let cars = [];
-let bankEntries = [];
-let repPasswords = {};
-let currentMonth = new Date().getMonth();
-let currentYear = new Date().getFullYear();
-
 // Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
   authDomain: "rep-management-system.firebaseapp.com",
-  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
+  databaseURL: "https://rep-management-system-default-rtdb.firebaseio.com",
   projectId: "rep-management-system",
   storageBucket: "rep-management-system.firebasestorage.app",
   messagingSenderId: "416275066968",
@@ -1067,7 +1054,15 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// Firebase save functions
+let reps = [];
+let orders = {};
+let loans = [];
+let cars = [];
+let bankEntries = [];
+let repPasswords = {};
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+
 function saveReps() { db.ref('reps').set(reps); }
 function saveOrdersData() { db.ref('orders').set(orders); }
 function saveLoans() { db.ref('loans').set(loans); }
@@ -1075,90 +1070,36 @@ function saveCars() { db.ref('cars').set(cars); }
 function saveBank() { db.ref('bankEntries').set(bankEntries); }
 function savePasswords() { db.ref('repPasswords').set(repPasswords); }
 
-// Data ready flag
-let firebaseReady = false;
-let pendingCallbacks = [];
+// Load data from Firebase
+db.ref('reps').on('value', snap => {
+    const val = snap.val();
+    reps = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+    renderReps();
+    renderHomeStats();
+});
 
-function whenReady(callback) {
-    if (firebaseReady) callback();
-    else pendingCallbacks.push(callback);
-}
+db.ref('orders').on('value', snap => {
+    orders = snap.val() || {};
+});
 
-function markReady() {
-    firebaseReady = true;
-    pendingCallbacks.forEach(cb => cb());
-    pendingCallbacks = [];
-    // Hide loading
-    const loader = document.getElementById('firebaseLoading');
-    if (loader) loader.style.display = 'none';
-}
+db.ref('loans').on('value', snap => {
+    const val = snap.val();
+    loans = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+});
 
-// Initialize Firebase listeners
-function initFirebaseListeners() {
-    let loadedCount = 0;
-    const totalNodes = 6;
+db.ref('cars').on('value', snap => {
+    const val = snap.val();
+    cars = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+});
 
-    function checkAllLoaded() {
-        loadedCount++;
-        if (loadedCount >= totalNodes) {
-            markReady();
-            renderReps();
-            renderHomeStats();
-            showPage('home');
-        }
-    }
+db.ref('bankEntries').on('value', snap => {
+    const val = snap.val();
+    bankEntries = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+});
 
-    db.ref('reps').on('value', (snapshot) => {
-        reps = snapshot.val() || [];
-        if (firebaseReady) {
-            renderReps();
-            renderHomeStats();
-            if (document.getElementById('loansPage').classList.contains('active')) initLoansPage();
-            if (document.getElementById('carsPage').classList.contains('active')) initCarsPage();
-            if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-        }
-        checkAllLoaded();
-    });
-
-    db.ref('orders').on('value', (snapshot) => {
-        orders = snapshot.val() || {};
-        if (firebaseReady) {
-            if (document.getElementById('dailyPage').classList.contains('active')) renderDaily();
-            if (document.getElementById('statsPage').classList.contains('active')) renderStats();
-            if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-        }
-        checkAllLoaded();
-    });
-
-    db.ref('loans').on('value', (snapshot) => {
-        loans = snapshot.val() || [];
-        if (firebaseReady && document.getElementById('loansPage').classList.contains('active')) {
-            renderLoans();
-            renderDebtSummary();
-        }
-        checkAllLoaded();
-    });
-
-    db.ref('cars').on('value', (snapshot) => {
-        cars = snapshot.val() || [];
-        if (firebaseReady && document.getElementById('carsPage').classList.contains('active')) renderCars();
-        if (firebaseReady && document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-        checkAllLoaded();
-    });
-
-    db.ref('bankEntries').on('value', (snapshot) => {
-        bankEntries = snapshot.val() || [];
-        if (firebaseReady && document.getElementById('bankPage').classList.contains('active')) renderBank();
-        checkAllLoaded();
-    });
-
-    db.ref('repPasswords').on('value', (snapshot) => {
-        repPasswords = snapshot.val() || {};
-        checkAllLoaded();
-    });
-}
-
-initFirebaseListeners();
+db.ref('repPasswords').on('value', snap => {
+    repPasswords = snap.val() || {};
+});
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1488,7 +1429,7 @@ function addRep() {
     // حفظ كلمة المرور في repPasswords
     // repPasswords loaded from Firebase
     repPasswords[id] = password;
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     saveReps(); document.getElementById('repForm').reset(); 
     document.getElementById('repSearch').value = '';
     renderReps(); renderHomeStats(); showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
@@ -1500,7 +1441,7 @@ function deleteRep(id) {
     // حذف كلمة المرور أيضاً
     // repPasswords loaded from Firebase
     delete repPasswords[id];
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     if (document.getElementById('repSearch').value) {
         filterRepsTable();
     } else {
@@ -1519,7 +1460,7 @@ function setRepPassword(repId) {
     if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
     // repPasswords loaded from Firebase
     repPasswords[repId] = newPass.trim();
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     showToast('تم تحديث كلمة المرور بنجاح', 'success');
 }
 
@@ -1897,7 +1838,7 @@ function renderStats() {
 // cars loaded from Firebase
 let carsFilter = 'all';
 
-// saveCars uses Firebase saveCars() defined above
+// saveCars uses Firebase
 
 function initCarsPage() {
     const carRep = document.getElementById('carRep');
@@ -2136,7 +2077,7 @@ showPage = function(page) {
 
 // bankEntries loaded from Firebase
 
-// saveBank uses Firebase saveBank() defined above
+// saveBank uses Firebase
 
 function initBankPage() {
     document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
@@ -2607,7 +2548,7 @@ showPage = function(page) {
     }
 };
 
-// Firebase listeners handle initial render
+// Initial render handled by Firebase listeners
 </script>
 
 
