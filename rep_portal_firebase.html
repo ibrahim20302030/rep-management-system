@@ -258,7 +258,8 @@ function loadAllDataFromFirebase() {
     db.ref('repPasswords').once('value')
   ]).then(([repsSnap, ordersSnap, loansSnap, carsSnap, passwordsSnap]) => {
     if (repsSnap.val()) {
-      reps = repsSnap.val();
+      const data = repsSnap.val();
+      reps = Array.isArray(data) ? data : Object.values(data);
       localStorage.setItem('reps', JSON.stringify(reps));
     }
     if (ordersSnap.val()) {
@@ -266,17 +267,30 @@ function loadAllDataFromFirebase() {
       localStorage.setItem('orders', JSON.stringify(orders));
     }
     if (loansSnap.val()) {
-      loans = loansSnap.val();
+      const data = loansSnap.val();
+      loans = Array.isArray(data) ? data : Object.values(data);
       localStorage.setItem('loans', JSON.stringify(loans));
     }
     if (carsSnap.val()) {
-      cars = carsSnap.val();
+      const data = carsSnap.val();
+      cars = Array.isArray(data) ? data : Object.values(data);
       localStorage.setItem('cars', JSON.stringify(cars));
     }
     if (passwordsSnap.val()) {
       repPasswords = passwordsSnap.val();
       localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+      console.log('Portal: Passwords loaded from Firebase:', Object.keys(repPasswords));
+    } else {
+      repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
+      console.log('Portal: No passwords in Firebase, using local:', Object.keys(repPasswords));
     }
+  }).catch(err => {
+    console.error('Portal load error:', err);
+    reps = JSON.parse(localStorage.getItem('reps') || '[]');
+    orders = JSON.parse(localStorage.getItem('orders') || '{}');
+    loans = JSON.parse(localStorage.getItem('loans') || '[]');
+    cars = JSON.parse(localStorage.getItem('cars') || '[]');
+    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
   });
 }
 
@@ -315,9 +329,8 @@ function setupRealtimeListeners() {
   db.ref('reps').on('value', snap => {
     const data = snap.val();
     if (data) {
-      reps = data;
+      reps = Array.isArray(data) ? data : Object.values(data);
       localStorage.setItem('reps', JSON.stringify(reps));
-      // Update current rep data if logged in
       if (currentPortalRep) {
         const updated = reps.find(r => r.id === currentPortalRep.id);
         if (updated) {
@@ -329,6 +342,14 @@ function setupRealtimeListeners() {
         }
         portalRefresh();
       }
+    }
+  });
+  db.ref('repPasswords').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      repPasswords = data;
+      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+      console.log('Portal: Passwords updated in realtime:', Object.keys(repPasswords));
     }
   });
 }
@@ -555,6 +576,12 @@ function portalSaveOrder() {
 
 // ===== INIT =====
 function initPortal() {
+  reps = JSON.parse(localStorage.getItem('reps') || '[]');
+  orders = JSON.parse(localStorage.getItem('orders') || '{}');
+  loans = JSON.parse(localStorage.getItem('loans') || '[]');
+  cars = JSON.parse(localStorage.getItem('cars') || '[]');
+  repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
+
   loadAllDataFromFirebase().then(() => {
     setupRealtimeListeners();
     showToast('✅ متصل بقاعدة البيانات', 'success');
@@ -574,12 +601,6 @@ function initPortal() {
   }).catch(err => {
     console.error('Firebase error:', err);
     showToast('⚠️ تعذر الاتصال، استخدام البيانات المحلية', 'warning');
-    // Fallback to localStorage
-    reps = JSON.parse(localStorage.getItem('reps') || '[]');
-    orders = JSON.parse(localStorage.getItem('orders') || '{}');
-    loans = JSON.parse(localStorage.getItem('loans') || '[]');
-    cars = JSON.parse(localStorage.getItem('cars') || '[]');
-    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
   });
 }
 
