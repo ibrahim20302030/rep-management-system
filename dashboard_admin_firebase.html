@@ -1376,22 +1376,33 @@ function addRep() {
     if (!name || !id || !iqama || !expiry || !password) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
     if (reps.find(r => r.id === id)) { showToast('هذا المعرف مستخدم مسبقاً', 'error'); return; }
     reps.push({id, name, iqama, expiry, createdAt: new Date().toISOString()});
-    // حفظ كلمة المرور في repPasswords
+    // حفظ كلمة المرور في repPasswords + Firebase
     let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     repPasswords[id] = password;
     localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    saveReps(); document.getElementById('repForm').reset(); 
-    document.getElementById('repSearch').value = '';
-    renderReps(); renderHomeStats(); showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
+    // SYNC PASSWORDS TO FIREBASE
+    syncPasswordsToFirebase().then(() => {
+        saveReps(); document.getElementById('repForm').reset(); 
+        document.getElementById('repSearch').value = '';
+        renderReps(); renderHomeStats(); 
+        showToast('تم تسجيل المندوب ورفع البيانات للسحابة بنجاح', 'success');
+    }).catch(err => {
+        console.error('Password sync failed:', err);
+        saveReps(); document.getElementById('repForm').reset();
+        document.getElementById('repSearch').value = '';
+        renderReps(); renderHomeStats();
+        showToast('تم التسجيل محلياً لكن فشل رفع الباسورد للسحابة', 'warning');
+    });
 }
 
 function deleteRep(id) {
     if (!confirm('هل أنت متأكد من الحذف؟')) return;
     reps = reps.filter(r => r.id !== id); saveReps(); 
-    // حذف كلمة المرور أيضاً
+    // حذف كلمة المرور أيضاً + sync
     let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     delete repPasswords[id];
     localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    syncPasswordsToFirebase().catch(err => console.error('Password delete sync failed:', err));
     if (document.getElementById('repSearch').value) {
         filterRepsTable();
     } else {
@@ -1411,7 +1422,13 @@ function setRepPassword(repId) {
     let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     repPasswords[repId] = newPass.trim();
     localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    showToast('تم تحديث كلمة المرور بنجاح', 'success');
+    // SYNC TO FIREBASE
+    syncPasswordsToFirebase().then(() => {
+        showToast('تم تحديث كلمة المرور بنجاح ورفعها للسحابة', 'success');
+    }).catch(err => {
+        console.error('Password sync failed:', err);
+        showToast('تم الحفظ محلياً لكن فشل الرفع للسحابة', 'warning');
+    });
 }
 
 function openEditModal(id) {
