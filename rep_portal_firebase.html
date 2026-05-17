@@ -250,17 +250,11 @@ let currentPortalRep = null;
 
 function saveOrdersData() { db.ref('orders').set(orders); }
 
-// Convert Firebase data to array
-function toArray(val) {
-    if (!val) return [];
-    if (Array.isArray(val)) return val;
-    return Object.values(val).filter(v => v != null);
-}
-
 // Load data from Firebase
 db.ref('reps').on('value', snap => {
-    reps = toArray(snap.val());
-    console.log('Reps loaded:', reps.length);
+    const val = snap.val();
+    reps = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+    console.log('Portal reps loaded:', reps.length);
 });
 
 db.ref('orders').on('value', snap => {
@@ -268,11 +262,13 @@ db.ref('orders').on('value', snap => {
 });
 
 db.ref('loans').on('value', snap => {
-    loans = toArray(snap.val());
+    const val = snap.val();
+    loans = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
 });
 
 db.ref('cars').on('value', snap => {
-    cars = toArray(snap.val());
+    const val = snap.val();
+    cars = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
 });
 
 db.ref('repPasswords').on('value', snap => {
