@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -6,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بوابة المندوب</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
         * { font-family: 'Cairo', sans-serif; }
@@ -226,22 +226,21 @@
 </div>
 
 <script>
-// Firebase configuration
+// ===== FIREBASE CONFIG & INIT =====
 const firebaseConfig = {
   apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
   authDomain: "rep-management-system.firebaseapp.com",
-  databaseURL: "https://rep-management-system-default-rtdb.firebaseio.com",
+  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "rep-management-system",
   storageBucket: "rep-management-system.firebasestorage.app",
   messagingSenderId: "416275066968",
   appId: "1:416275066968:web:ba70ac29799f0434179a2d"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+const db = firebase.database();
 
-// Data from Firebase
+// ===== DATA VARIABLES =====
 let reps = [];
 let orders = {};
 let loans = [];
@@ -249,37 +248,92 @@ let cars = [];
 let repPasswords = {};
 let currentPortalRep = null;
 
-function saveOrdersData() { database.ref('orders').set(orders); }
-
-// Helper: Convert Firebase object to array
-function fbToArray(val) {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return Object.values(val).filter(v => v !== null && v !== undefined);
+// ===== LOAD ALL DATA FROM FIREBASE =====
+function loadAllDataFromFirebase() {
+  return Promise.all([
+    db.ref('reps').once('value'),
+    db.ref('orders').once('value'),
+    db.ref('loans').once('value'),
+    db.ref('cars').once('value'),
+    db.ref('repPasswords').once('value')
+  ]).then(([repsSnap, ordersSnap, loansSnap, carsSnap, passwordsSnap]) => {
+    if (repsSnap.val()) {
+      reps = repsSnap.val();
+      localStorage.setItem('reps', JSON.stringify(reps));
+    }
+    if (ordersSnap.val()) {
+      orders = ordersSnap.val();
+      localStorage.setItem('orders', JSON.stringify(orders));
+    }
+    if (loansSnap.val()) {
+      loans = loansSnap.val();
+      localStorage.setItem('loans', JSON.stringify(loans));
+    }
+    if (carsSnap.val()) {
+      cars = carsSnap.val();
+      localStorage.setItem('cars', JSON.stringify(cars));
+    }
+    if (passwordsSnap.val()) {
+      repPasswords = passwordsSnap.val();
+      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    }
+  });
 }
 
-// Load data from Firebase
-database.ref('reps').on('value', (snapshot) => {
-  reps = fbToArray(snapshot.val());
-  console.log('Portal: reps loaded', reps.length);
-});
+// ===== SAVE ORDERS TO FIREBASE =====
+function saveOrdersData() {
+  localStorage.setItem('orders', JSON.stringify(orders));
+  db.ref('orders').set(orders).catch(err => console.error('Sync failed:', err));
+}
 
-database.ref('orders').on('value', (snapshot) => {
-  orders = snapshot.val() || {};
-});
+// ===== REALTIME LISTENERS =====
+function setupRealtimeListeners() {
+  db.ref('orders').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      orders = data;
+      localStorage.setItem('orders', JSON.stringify(orders));
+      if (currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('loans').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      loans = data;
+      localStorage.setItem('loans', JSON.stringify(loans));
+      if (currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('cars').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      cars = data;
+      localStorage.setItem('cars', JSON.stringify(cars));
+      if (currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('reps').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      reps = data;
+      localStorage.setItem('reps', JSON.stringify(reps));
+      // Update current rep data if logged in
+      if (currentPortalRep) {
+        const updated = reps.find(r => r.id === currentPortalRep.id);
+        if (updated) {
+          currentPortalRep = updated;
+          document.getElementById('portalName').textContent = updated.name;
+          document.getElementById('portalAvatar').textContent = updated.name.charAt(0);
+          document.getElementById('portalIqama').textContent = updated.iqama;
+          document.getElementById('portalExpiry').textContent = updated.expiry;
+        }
+        portalRefresh();
+      }
+    }
+  });
+}
 
-database.ref('loans').on('value', (snapshot) => {
-  loans = fbToArray(snapshot.val());
-});
-
-database.ref('cars').on('value', (snapshot) => {
-  cars = fbToArray(snapshot.val());
-});
-
-database.ref('repPasswords').on('value', (snapshot) => {
-  repPasswords = snapshot.val() || {};
-});
-
+// ===== TOAST =====
 function showToast(msg, type) {
     const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
     const div = document.createElement('div');
@@ -290,7 +344,7 @@ function showToast(msg, type) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// تسجيل الدخول
+// ===== LOGIN =====
 function portalLogin() {
     const id = document.getElementById('portalLoginId').value.trim();
     const password = document.getElementById('portalLoginPassword').value;
@@ -345,11 +399,6 @@ function getRepDebt(repId) {
 
 function portalRefresh() {
     if (!currentPortalRep) return;
-
-    // reps from Firebase
-    // orders from Firebase
-    // loans from Firebase
-    // cars from Firebase
 
     const repId = currentPortalRep.id;
     const now = new Date();
@@ -495,7 +544,6 @@ function portalSaveOrder() {
     if (isNaN(count) || count < 0) { showToast('أدخل عدد صحيح', 'error'); return; }
     if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
 
-    // orders from Firebase
     if (!orders[date]) orders[date] = {};
     orders[date][currentPortalRep.id] = count;
     saveOrdersData();
@@ -505,18 +553,37 @@ function portalSaveOrder() {
     showToast('تم حفظ ' + count + ' طلب بنجاح!', 'success');
 }
 
-if (reps.length === 0) {
-    document.getElementById('portalLogin').innerHTML = `
+// ===== INIT =====
+function initPortal() {
+  loadAllDataFromFirebase().then(() => {
+    setupRealtimeListeners();
+    showToast('✅ متصل بقاعدة البيانات', 'success');
+
+    if (reps.length === 0) {
+      document.getElementById('portalLogin').innerHTML = `
         <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
             <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <h3 class="text-2xl font-bold text-slate-800 mb-2">بوابة المندوب</h3>
-            <p class="text-slate-500 mb-6">لا توجد بيانات مناديب مسجلة</p>
-            <p class="text-slate-400 text-sm">يجب إضافة المناديب وكلمات المرور من خلال لوحة الإدارة أولاً</p>
+            <p class="text-slate-500 mb-6">لا توجد بيانات مناديب مسجلة في النظام</p>
+            <p class="text-slate-400 text-sm">يجب إضافة المناديب من لوحة الإدارة أولاً</p>
         </div>
-    `;
+      `;
+    }
+  }).catch(err => {
+    console.error('Firebase error:', err);
+    showToast('⚠️ تعذر الاتصال، استخدام البيانات المحلية', 'warning');
+    // Fallback to localStorage
+    reps = JSON.parse(localStorage.getItem('reps') || '[]');
+    orders = JSON.parse(localStorage.getItem('orders') || '{}');
+    loans = JSON.parse(localStorage.getItem('loans') || '[]');
+    cars = JSON.parse(localStorage.getItem('cars') || '[]');
+    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
+  });
 }
+
+initPortal();
 </script>
 </body>
 </html>
