@@ -1040,7 +1040,7 @@
 </div>
 
 <script>
-// Firebase config
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
   authDomain: "rep-management-system.firebaseapp.com",
@@ -1051,9 +1051,11 @@ const firebaseConfig = {
   appId: "1:416275066968:web:ba70ac29799f0434179a2d"
 };
 
+// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const database = firebase.database();
 
+// Data variables (loaded from Firebase)
 let reps = [];
 let orders = {};
 let loans = [];
@@ -1063,42 +1065,46 @@ let repPasswords = {};
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 
-function saveReps() { db.ref('reps').set(reps); }
-function saveOrdersData() { db.ref('orders').set(orders); }
-function saveLoans() { db.ref('loans').set(loans); }
-function saveCars() { db.ref('cars').set(cars); }
-function saveBank() { db.ref('bankEntries').set(bankEntries); }
-function savePasswords() { db.ref('repPasswords').set(repPasswords); }
+// Save functions (Firebase)
+function saveReps() { database.ref('reps').set(reps); }
+function saveOrdersData() { database.ref('orders').set(orders); }
+function saveLoans() { database.ref('loans').set(loans); }
+function saveCars() { database.ref('cars').set(cars); }
+function saveBank() { database.ref('bankEntries').set(bankEntries); }
+function savePasswords() { database.ref('repPasswords').set(repPasswords); }
 
-// Load data from Firebase
-db.ref('reps').on('value', snap => {
-    const val = snap.val();
-    reps = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
-    renderReps();
-    renderHomeStats();
+// Helper: Convert Firebase object to array
+function fbToArray(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return Object.values(val).filter(v => v !== null && v !== undefined);
+}
+
+// Load data from Firebase and setup real-time listeners
+database.ref('reps').on('value', (snapshot) => {
+  reps = fbToArray(snapshot.val());
+  renderReps();
+  renderHomeStats();
 });
 
-db.ref('orders').on('value', snap => {
-    orders = snap.val() || {};
+database.ref('orders').on('value', (snapshot) => {
+  orders = snapshot.val() || {};
 });
 
-db.ref('loans').on('value', snap => {
-    const val = snap.val();
-    loans = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+database.ref('loans').on('value', (snapshot) => {
+  loans = fbToArray(snapshot.val());
 });
 
-db.ref('cars').on('value', snap => {
-    const val = snap.val();
-    cars = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+database.ref('cars').on('value', (snapshot) => {
+  cars = fbToArray(snapshot.val());
 });
 
-db.ref('bankEntries').on('value', snap => {
-    const val = snap.val();
-    bankEntries = val ? (Array.isArray(val) ? val : Object.values(val).filter(v => v != null)) : [];
+database.ref('bankEntries').on('value', (snapshot) => {
+  bankEntries = fbToArray(snapshot.val());
 });
 
-db.ref('repPasswords').on('value', snap => {
-    repPasswords = snap.val() || {};
+database.ref('repPasswords').on('value', (snapshot) => {
+  repPasswords = snapshot.val() || {};
 });
 
 function showPage(page) {
@@ -1429,7 +1435,7 @@ function addRep() {
     // حفظ كلمة المرور في repPasswords
     // repPasswords loaded from Firebase
     repPasswords[id] = password;
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    savePasswords();
     saveReps(); document.getElementById('repForm').reset(); 
     document.getElementById('repSearch').value = '';
     renderReps(); renderHomeStats(); showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
@@ -1441,7 +1447,7 @@ function deleteRep(id) {
     // حذف كلمة المرور أيضاً
     // repPasswords loaded from Firebase
     delete repPasswords[id];
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    savePasswords();
     if (document.getElementById('repSearch').value) {
         filterRepsTable();
     } else {
@@ -1460,7 +1466,7 @@ function setRepPassword(repId) {
     if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
     // repPasswords loaded from Firebase
     repPasswords[repId] = newPass.trim();
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    savePasswords();
     showToast('تم تحديث كلمة المرور بنجاح', 'success');
 }
 
@@ -2548,7 +2554,7 @@ showPage = function(page) {
     }
 };
 
-// Initial render handled by Firebase listeners
+// Initial render handled by Firebase real-time listeners
 </script>
 
 
