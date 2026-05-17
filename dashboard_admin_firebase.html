@@ -2630,7 +2630,13 @@ function loadPasswordsFromFirebase() {
     if (data) { 
       repPasswords = data; 
       localStorage.setItem('repPasswords', JSON.stringify(repPasswords)); 
+      console.log('Passwords loaded from Firebase:', Object.keys(repPasswords));
+    } else {
+      console.log('No passwords in Firebase, using local:', Object.keys(repPasswords));
     }
+  }).catch(err => {
+    console.error('loadPasswordsFromFirebase error:', err);
+    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
   });
 }
 
