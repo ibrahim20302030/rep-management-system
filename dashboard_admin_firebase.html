@@ -1,13 +1,14 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام إدارة المناديب - مع تصدير Excel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
@@ -1040,72 +1041,15 @@
 </div>
 
 <script>
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
-  authDomain: "rep-management-system.firebaseapp.com",
-  databaseURL: "https://rep-management-system-default-rtdb.firebaseio.com",
-  projectId: "rep-management-system",
-  storageBucket: "rep-management-system.firebasestorage.app",
-  messagingSenderId: "416275066968",
-  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
-// Data variables (loaded from Firebase)
-let reps = [];
-let orders = {};
-let loans = [];
-let cars = [];
-let bankEntries = [];
-let repPasswords = {};
+let reps = JSON.parse(localStorage.getItem('reps') || '[]');
+let orders = JSON.parse(localStorage.getItem('orders') || '{}');
+let loans = JSON.parse(localStorage.getItem('loans') || '[]');
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 
-// Save functions (Firebase)
-function saveReps() { database.ref('reps').set(reps); }
-function saveOrdersData() { database.ref('orders').set(orders); }
-function saveLoans() { database.ref('loans').set(loans); }
-function saveCars() { database.ref('cars').set(cars); }
-function saveBank() { database.ref('bankEntries').set(bankEntries); }
-function savePasswords() { database.ref('repPasswords').set(repPasswords); }
-
-// Helper: Convert Firebase object to array
-function fbToArray(val) {
-  if (!val) return [];
-  if (Array.isArray(val)) return val;
-  return Object.values(val).filter(v => v !== null && v !== undefined);
-}
-
-// Load data from Firebase and setup real-time listeners
-database.ref('reps').on('value', (snapshot) => {
-  reps = fbToArray(snapshot.val());
-  renderReps();
-  renderHomeStats();
-});
-
-database.ref('orders').on('value', (snapshot) => {
-  orders = snapshot.val() || {};
-});
-
-database.ref('loans').on('value', (snapshot) => {
-  loans = fbToArray(snapshot.val());
-});
-
-database.ref('cars').on('value', (snapshot) => {
-  cars = fbToArray(snapshot.val());
-});
-
-database.ref('bankEntries').on('value', (snapshot) => {
-  bankEntries = fbToArray(snapshot.val());
-});
-
-database.ref('repPasswords').on('value', (snapshot) => {
-  repPasswords = snapshot.val() || {};
-});
+function saveReps() { localStorage.setItem('reps', JSON.stringify(reps)); }
+function saveOrdersData() { localStorage.setItem('orders', JSON.stringify(orders)); }
+function saveLoans() { localStorage.setItem('loans', JSON.stringify(loans)); }
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1433,9 +1377,9 @@ function addRep() {
     if (reps.find(r => r.id === id)) { showToast('هذا المعرف مستخدم مسبقاً', 'error'); return; }
     reps.push({id, name, iqama, expiry, createdAt: new Date().toISOString()});
     // حفظ كلمة المرور في repPasswords
-    // repPasswords loaded from Firebase
+    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     repPasswords[id] = password;
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     saveReps(); document.getElementById('repForm').reset(); 
     document.getElementById('repSearch').value = '';
     renderReps(); renderHomeStats(); showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
@@ -1445,9 +1389,9 @@ function deleteRep(id) {
     if (!confirm('هل أنت متأكد من الحذف؟')) return;
     reps = reps.filter(r => r.id !== id); saveReps(); 
     // حذف كلمة المرور أيضاً
-    // repPasswords loaded from Firebase
+    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     delete repPasswords[id];
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     if (document.getElementById('repSearch').value) {
         filterRepsTable();
     } else {
@@ -1464,9 +1408,9 @@ function setRepPassword(repId) {
     const newPass = prompt('أدخل كلمة المرور الجديدة للمندوب: ' + rep.name);
     if (newPass === null) return;
     if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
-    // repPasswords loaded from Firebase
+    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
     repPasswords[repId] = newPass.trim();
-    savePasswords();
+    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
     showToast('تم تحديث كلمة المرور بنجاح', 'success');
 }
 
@@ -1841,10 +1785,10 @@ function renderStats() {
 
 // ========== دوال إدارة السيارات ==========
 
-// cars loaded from Firebase
+let cars = JSON.parse(localStorage.getItem('cars') || '[]');
 let carsFilter = 'all';
 
-// saveCars uses Firebase
+function saveCars() { localStorage.setItem('cars', JSON.stringify(cars)); }
 
 function initCarsPage() {
     const carRep = document.getElementById('carRep');
@@ -2081,9 +2025,9 @@ showPage = function(page) {
 
 // ========== دوال إدارة البنك ==========
 
-// bankEntries loaded from Firebase
+let bankEntries = JSON.parse(localStorage.getItem('bankEntries') || '[]');
 
-// saveBank uses Firebase
+function saveBank() { localStorage.setItem('bankEntries', JSON.stringify(bankEntries)); }
 
 function initBankPage() {
     document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
@@ -2554,7 +2498,189 @@ showPage = function(page) {
     }
 };
 
-// Initial render handled by Firebase real-time listeners
+// ===== FIREBASE CONFIG & INIT =====
+const firebaseConfig = {
+  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
+  authDomain: "rep-management-system.firebaseapp.com",
+  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rep-management-system",
+  storageBucket: "rep-management-system.firebasestorage.app",
+  messagingSenderId: "416275066968",
+  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ===== SYNC TO FIREBASE =====
+function syncRepsToFirebase() {
+  return db.ref('reps').set(reps);
+}
+function syncOrdersToFirebase() {
+  return db.ref('orders').set(orders);
+}
+function syncLoansToFirebase() {
+  return db.ref('loans').set(loans);
+}
+function syncCarsToFirebase() {
+  return db.ref('cars').set(cars);
+}
+function syncBankToFirebase() {
+  return db.ref('bankEntries').set(bankEntries);
+}
+function syncPasswordsToFirebase() {
+  return db.ref('repPasswords').set(repPasswords);
+}
+
+// ===== LOAD FROM FIREBASE =====
+function loadRepsFromFirebase() {
+  return db.ref('reps').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { reps = data; localStorage.setItem('reps', JSON.stringify(reps)); }
+  });
+}
+function loadOrdersFromFirebase() {
+  return db.ref('orders').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { orders = data; localStorage.setItem('orders', JSON.stringify(orders)); }
+  });
+}
+function loadLoansFromFirebase() {
+  return db.ref('loans').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { loans = data; localStorage.setItem('loans', JSON.stringify(loans)); }
+  });
+}
+function loadCarsFromFirebase() {
+  return db.ref('cars').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { cars = data; localStorage.setItem('cars', JSON.stringify(cars)); }
+  });
+}
+function loadBankFromFirebase() {
+  return db.ref('bankEntries').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { bankEntries = data; localStorage.setItem('bankEntries', JSON.stringify(bankEntries)); }
+  });
+}
+function loadPasswordsFromFirebase() {
+  return db.ref('repPasswords').once('value').then(snap => {
+    const data = snap.val();
+    if (data) { 
+      repPasswords = data; 
+      localStorage.setItem('repPasswords', JSON.stringify(repPasswords)); 
+    }
+  });
+}
+
+// ===== REALTIME LISTENERS =====
+function setupRealtimeListeners() {
+  db.ref('reps').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      reps = data;
+      localStorage.setItem('reps', JSON.stringify(reps));
+      renderReps(); renderHomeStats();
+      if (document.getElementById('loansPage').classList.contains('active')) initLoansPage();
+      if (document.getElementById('carsPage').classList.contains('active')) initCarsPage();
+      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('orders').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      orders = data;
+      localStorage.setItem('orders', JSON.stringify(orders));
+      if (document.getElementById('dailyPage').classList.contains('active')) renderDaily();
+      if (document.getElementById('statsPage').classList.contains('active')) renderStats();
+      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('loans').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      loans = data;
+      localStorage.setItem('loans', JSON.stringify(loans));
+      if (document.getElementById('loansPage').classList.contains('active')) { renderLoans(); renderDebtSummary(); }
+      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('cars').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      cars = data;
+      localStorage.setItem('cars', JSON.stringify(cars));
+      if (document.getElementById('carsPage').classList.contains('active')) renderCars();
+      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
+    }
+  });
+  db.ref('bankEntries').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      bankEntries = data;
+      localStorage.setItem('bankEntries', JSON.stringify(bankEntries));
+      if (document.getElementById('bankPage').classList.contains('active')) renderBank();
+    }
+  });
+  db.ref('repPasswords').on('value', snap => {
+    const data = snap.val();
+    if (data) {
+      repPasswords = data;
+      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
+    }
+  });
+}
+
+// ===== OVERRIDE SAVE FUNCTIONS =====
+saveReps = function() {
+  localStorage.setItem('reps', JSON.stringify(reps));
+  syncRepsToFirebase().catch(err => console.error('Firebase reps sync failed:', err));
+};
+
+saveOrdersData = function() {
+  localStorage.setItem('orders', JSON.stringify(orders));
+  syncOrdersToFirebase().catch(err => console.error('Firebase orders sync failed:', err));
+};
+
+saveLoans = function() {
+  localStorage.setItem('loans', JSON.stringify(loans));
+  syncLoansToFirebase().catch(err => console.error('Firebase loans sync failed:', err));
+};
+
+saveCars = function() {
+  localStorage.setItem('cars', JSON.stringify(cars));
+  syncCarsToFirebase().catch(err => console.error('Firebase cars sync failed:', err));
+};
+
+saveBank = function() {
+  localStorage.setItem('bankEntries', JSON.stringify(bankEntries));
+  syncBankToFirebase().catch(err => console.error('Firebase bank sync failed:', err));
+};
+
+// ===== INIT =====
+function initFirebase() {
+  Promise.all([
+    loadRepsFromFirebase(),
+    loadOrdersFromFirebase(),
+    loadLoansFromFirebase(),
+    loadCarsFromFirebase(),
+    loadBankFromFirebase(),
+    loadPasswordsFromFirebase()
+  ]).then(() => {
+    showToast('تم الاتصال بقاعدة البيانات السحابية', 'success');
+    setupRealtimeListeners();
+    renderReps();
+    renderHomeStats();
+  }).catch(err => {
+    console.error('Firebase init error:', err);
+    showToast('تعذر الاتصال بالسحابة، العمل على البيانات المحلية', 'warning');
+    renderReps();
+    renderHomeStats();
+  });
+}
+
+initFirebase();
+showPage('home');
 </script>
 
 
