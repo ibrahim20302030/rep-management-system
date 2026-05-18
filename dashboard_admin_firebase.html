@@ -1,16 +1,16 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة المناديب - مع تصدير Excel</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    
+    <title>نظام إدارة المناديب - Firebase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
         * { font-family: 'Cairo', sans-serif; }
@@ -39,27 +39,19 @@
         .export-menu button:hover { background: #f0fdf4; color: #059669; }
         .print-btn { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); transition: all 0.3s ease; }
         .print-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(99,102,241,0.3); }
-        .rep-portal { background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%); }
-        .rep-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
-        .rep-stat { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.05); }
-        .progress-ring { transform: rotate(-90deg); }
-        .progress-ring-circle { transition: stroke-dashoffset 0.5s ease; }
-        .order-input { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color: white; }
-        .order-input:focus { background: rgba(255,255,255,0.15); border-color: #3b82f6; }
-        .rep-btn { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
-        .rep-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(59,130,246,0.3); }
-        .rep-btn-secondary { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); }
-        .rep-btn-secondary:hover { background: rgba(255,255,255,0.2); }
-        .achievement-badge { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
-        .rank-badge { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+        .loading { display: inline-block; width: 20px; height: 20px; border: 3px solid rgba(255,255,255,.3); border-radius: 50%; border-top-color: #fff; animation: spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .sync-status { position: fixed; bottom: 20px; left: 20px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 9999; transition: all 0.3s; }
+        .sync-status.online { background: #10b981; color: white; }
+        .sync-status.offline { background: #f59e0b; color: white; }
+        .sync-status.syncing { background: #3b82f6; color: white; }
         svg { display: inline-block; vertical-align: middle; }
-        .nav-item svg { width: 20px; height: 20px; }
-        .export-btn svg { width: 20px; height: 20px; }
-        .kpi-card svg { width: 24px; height: 24px; }
-
     </style>
 </head>
 <body>
+
+<!-- Sync Status Indicator -->
+<div id="syncStatus" class="sync-status online">🟢 متصل بـ Firebase</div>
 
 <div id="editCarModal" class="modal">
     <div class="modal-content shadow-2xl">
@@ -140,6 +132,7 @@
     <aside class="sidebar w-64 text-white flex-shrink-0 flex flex-col">
         <div class="p-6 border-b border-slate-700">
             <h1 class="text-xl font-bold text-center">📊 نظام المناديب</h1>
+            <p class="text-xs text-center text-slate-400 mt-1">متصل بـ Firebase</p>
         </div>
         <nav class="flex-1 p-4 space-y-2">
             <button onclick="showPage('home')" id="nav_home" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
@@ -606,7 +599,6 @@
             </div>
         </div>
 
-
         <div id="carsPage" class="page max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-6">
                 <div>
@@ -616,7 +608,7 @@
                 <div class="flex items-center gap-3">
                     <div class="relative">
                         <button onclick="toggleExportMenu('cars')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير البيانات
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg> تصدير البيانات
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                         </button>
                         <div id="exportMenu_cars" class="export-menu">
@@ -716,10 +708,9 @@
                     <p>لا توجد سيارات مسجلة</p>
                 </div>
             </div>
-
         </div>
 
-<div id="bankPage" class="page max-w-7xl mx-auto">
+        <div id="bankPage" class="page max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h2 class="text-3xl font-bold text-slate-800 mb-2">سجل البنك</h2>
@@ -740,7 +731,7 @@
                         </button>
                         </div>
                     </div>
-                    <button onclick="printPage('loans')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                    <button onclick="printPage('bank')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
                     </button>
                 </div>
@@ -793,12 +784,10 @@
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> سجل العمليات
                                 </h3>
                                 <div class="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                                    <!-- Search Box -->
                                     <div class="relative flex-1 md:w-64">
                                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                                         <input type="text" id="bankSearch" oninput="filterBankTable()" class="w-full pr-10 pl-4 py-2 border-2 border-slate-200 rounded-xl transition text-sm" placeholder="ابحث في البيان أو الملاحظات...">
                                     </div>
-                                    <!-- Filter Dropdown -->
                                     <select id="bankFilter" onchange="filterBankTable()" class="px-4 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
                                         <option value="all">الكل</option>
                                         <option value="debit">مدين فقط (صرف)</option>
@@ -864,7 +853,6 @@
             </div>
         </div>
 
-
         <div id="portalPage" class="page max-w-5xl mx-auto">
             <div class="flex justify-between items-center mb-6">
                 <div>
@@ -876,7 +864,7 @@
             <!-- Login Section -->
             <div id="portalLogin" class="bg-white rounded-2xl shadow-lg p-8 max-w-md mx-auto">
                 <div class="text-center mb-8">
-                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold">
+                    <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     </div>
                     <h3 class="text-2xl font-bold text-slate-800">تسجيل دخول المندوب</h3>
@@ -887,7 +875,11 @@
                         <label class="block font-bold text-slate-700 mb-2">الرقم التعريفي (ID)</label>
                         <input type="text" id="portalLoginId" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono" placeholder="REP001" onkeypress="if(event.key==='Enter')portalLogin()">
                     </div>
-                    <button onclick="portalLogin()" class="w-full rep-btn text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-2">كلمة المرور</label>
+                        <input type="password" id="portalLoginPassword" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="••••••" onkeypress="if(event.key==='Enter')portalLogin()">
+                    </div>
+                    <button onclick="portalLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg> دخول
                     </button>
                 </div>
@@ -896,7 +888,7 @@
             <!-- Dashboard (Hidden initially) -->
             <div id="portalDashboard" class="hidden">
                 <!-- Header Card -->
-                <div class="rep-portal rounded-2xl p-6 mb-6 text-white">
+                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 mb-6 text-white">
                     <div class="flex items-center gap-4 mb-6">
                         <div class="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold" id="portalAvatar">
                             أ
@@ -905,26 +897,26 @@
                             <h3 class="text-2xl font-bold" id="portalName">اسم المندوب</h3>
                             <p class="text-blue-200 text-sm" id="portalId">REP001</p>
                         </div>
-                        <button onclick="portalLogout()" class="mr-auto rep-btn-secondary text-white px-4 py-2 rounded-xl transition text-sm">
+                        <button onclick="portalLogout()" class="mr-auto bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl transition text-sm flex items-center gap-2">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg> خروج
                         </button>
                     </div>
 
                     <!-- Quick Stats -->
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div class="rep-stat rounded-xl p-4 text-center">
+                        <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
                             <div class="text-3xl font-bold" id="portalOrdersToday">0</div>
                             <div class="text-sm text-blue-200">طلبات اليوم</div>
                         </div>
-                        <div class="rep-stat rounded-xl p-4 text-center">
+                        <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
                             <div class="text-3xl font-bold" id="portalOrdersMonth">0</div>
                             <div class="text-sm text-blue-200">طلبات الشهر</div>
                         </div>
-                        <div class="rep-stat rounded-xl p-4 text-center">
+                        <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
                             <div class="text-3xl font-bold" id="portalDebt">0</div>
                             <div class="text-sm text-blue-200">السلف</div>
                         </div>
-                        <div class="rep-stat rounded-xl p-4 text-center">
+                        <div class="bg-white/10 backdrop-blur rounded-xl p-4 text-center border border-white/10">
                             <div class="text-3xl font-bold" id="portalRank">-</div>
                             <div class="text-sm text-blue-200">ترتيبك</div>
                         </div>
@@ -935,8 +927,7 @@
                     <!-- Daily Orders Input -->
                     <div class="bg-white rounded-2xl shadow-lg p-6">
                         <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M9 12h6"/><path d="M9 16h6"/><path d="M9 8h6"/></svg>
-                            تسجيل طلبات اليوم
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M9 12h6"/><path d="M9 16h6"/><path d="M9 8h6"/></svg> تسجيل طلبات اليوم
                         </h3>
                         <div class="space-y-4">
                             <div>
@@ -945,9 +936,9 @@
                             </div>
                             <div>
                                 <label class="block font-bold text-slate-700 mb-2">عدد الطلبات</label>
-                                <input type="number" id="portalOrderCount" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono text-lg" placeholder="0" min="0" onkeypress="if(event.key==='Enter')portalSaveOrder()">
+                                <input type="number" id="portalOrderCount" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono text-lg text-center" placeholder="0" min="0" onkeypress="if(event.key==='Enter')portalSaveOrder()">
                             </div>
-                            <button onclick="portalSaveOrder()" class="w-full rep-btn text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
+                            <button onclick="portalSaveOrder()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ الطلبات
                             </button>
                         </div>
@@ -966,8 +957,7 @@
                         <!-- Monthly Progress -->
                         <div class="bg-white rounded-2xl shadow-lg p-6">
                             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                                تقدمك الشهري
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg> تقدمك الشهري
                             </h3>
                             <div class="flex items-center justify-center mb-4">
                                 <div class="relative">
@@ -984,25 +974,24 @@
                                 </div>
                             </div>
                             <div class="flex justify-between text-sm">
-                                <span class="text-slate-600">طلباتك: <span class="font-bold" id="portalMyOrders">0</span></span>
-                                <span class="text-slate-600">هدف الشهر: <span class="font-bold">500</span></span>
+                                <span class="text-slate-600">طلباتك: <span class="font-bold text-slate-800" id="portalMyOrders">0</span></span>
+                                <span class="text-slate-600">هدف الشهر: <span class="font-bold text-slate-800">500</span></span>
                             </div>
                         </div>
 
                         <!-- Iqama Status -->
                         <div class="bg-white rounded-2xl shadow-lg p-6">
                             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                                حالة الإقامة
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> حالة الإقامة
                             </h3>
                             <div class="space-y-3">
                                 <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
                                     <span class="text-slate-600">رقم الإقامة</span>
-                                    <span class="font-bold font-mono" id="portalIqama">-</span>
+                                    <span class="font-bold font-mono text-slate-800" id="portalIqama">-</span>
                                 </div>
                                 <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
                                     <span class="text-slate-600">تاريخ الانتهاء</span>
-                                    <span class="font-bold" id="portalExpiry">-</span>
+                                    <span class="font-bold text-slate-800" id="portalExpiry">-</span>
                                 </div>
                                 <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
                                     <span class="text-slate-600">الأيام المتبقية</span>
@@ -1015,8 +1004,7 @@
                         <!-- Car Status -->
                         <div class="bg-white rounded-2xl shadow-lg p-6">
                             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-                                حالة السيارة
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg> حالة السيارة
                             </h3>
                             <div id="portalCarInfo" class="space-y-3">
                                 <div class="text-center text-slate-400 py-4">لا توجد سيارة مسجلة</div>
@@ -1026,8 +1014,7 @@
                         <!-- Achievements -->
                         <div class="bg-white rounded-2xl shadow-lg p-6">
                             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                                إنجازاتك
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> إنجازاتك
                             </h3>
                             <div id="portalAchievements" class="flex flex-wrap gap-2">
                                 <span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>
@@ -1040,16 +1027,119 @@
     </main>
 </div>
 
+<!-- نافذة تسليم السيارة -->
+<div id="returnModal" class="modal">
+    <div class="modal-content shadow-2xl">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-slate-800">تسليم السيارة</h3>
+            <button onclick="closeReturnModal()" class="text-slate-400 hover:text-slate-600 text-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <form id="returnForm" onsubmit="event.preventDefault(); saveReturn();" class="space-y-4">
+            <input type="hidden" id="returnCarId">
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">المندوب</label>
+                <input type="text" id="returnRepName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">نوع السيارة</label>
+                <input type="text" id="returnCarType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">تاريخ التسليم الفعلي *</label>
+                <input type="date" id="returnDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
+            </div>
+            <div>
+                <label class="block font-bold text-slate-700 mb-2">ملاحظات التسليم</label>
+                <input type="text" id="returnNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="حالة السيارة، عداد الكيلومترات، إلخ...">
+            </div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> تأكيد التسليم
+                </button>
+                <button type="button" onclick="closeReturnModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-let reps = JSON.parse(localStorage.getItem('reps') || '[]');
-let orders = JSON.parse(localStorage.getItem('orders') || '{}');
-let loans = JSON.parse(localStorage.getItem('loans') || '[]');
+// ========== FIREBASE DATA MANAGEMENT ==========
+let reps = [];
+let orders = {};
+let loans = [];
+let cars = [];
+let bankEntries = [];
+let repPasswords = {};
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
+let currentPortalRep = null;
+let carsFilter = 'all';
 
-function saveReps() { localStorage.setItem('reps', JSON.stringify(reps)); }
-function saveOrdersData() { localStorage.setItem('orders', JSON.stringify(orders)); }
-function saveLoans() { localStorage.setItem('loans', JSON.stringify(loans)); }
+// Sync status indicator
+function setSyncStatus(status, msg) {
+    const el = document.getElementById('syncStatus');
+    el.className = 'sync-status ' + status;
+    el.textContent = msg;
+}
+
+// Initialize data listeners
+function initFirebaseListeners() {
+    setSyncStatus('syncing', '🔄 جاري التحميل...');
+
+    // Reps listener
+    repsRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        reps = Object.keys(data).map(key => ({...data[key], _key: key}));
+        renderReps();
+        renderHomeStats();
+        if (document.querySelector('#loansPage.active')) initLoansPage();
+        if (document.querySelector('#carsPage.active')) initCarsPage();
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
+    // Orders listener
+    ordersRef.on('value', (snapshot) => {
+        orders = snapshot.val() || {};
+        if (document.querySelector('#dailyPage.active')) renderDaily();
+        if (document.querySelector('#statsPage.active')) renderStats();
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
+    // Loans listener
+    loansRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        loans = Object.keys(data).map(key => ({...data[key], id: key}));
+        if (document.querySelector('#loansPage.active')) {
+            renderLoans();
+            renderDebtSummary();
+        }
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
+    // Cars listener
+    carsRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        cars = Object.keys(data).map(key => ({...data[key], id: key}));
+        if (document.querySelector('#carsPage.active')) renderCars();
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
+    // Bank entries listener
+    bankEntriesRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        bankEntries = Object.keys(data).map(key => ({...data[key], id: key}));
+        if (document.querySelector('#bankPage.active')) renderBank();
+    });
+
+    // Passwords listener
+    repPasswordsRef.on('value', (snapshot) => {
+        repPasswords = snapshot.val() || {};
+    });
+
+    setSyncStatus('online', '🟢 متصل بـ Firebase');
+}
+
+// ========== CORE FUNCTIONS ==========
 
 function showPage(page) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1057,10 +1147,16 @@ function showPage(page) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('nav_' + page).classList.add('active');
     document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
+
     if (page === 'daily') renderDaily();
     if (page === 'stats') renderStats();
     if (page === 'home') renderHomeStats();
     if (page === 'loans') initLoansPage();
+    if (page === 'cars') initCarsPage();
+    if (page === 'bank') initBankPage();
+    if (page === 'portal') {
+        if (currentPortalRep) portalRefresh();
+    }
 }
 
 document.addEventListener('click', function(e) {
@@ -1086,231 +1182,167 @@ function showToast(msg, type) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// ========== دوال التصدير لـ Excel ==========
+// ========== REPS MANAGEMENT ==========
 
-function exportToExcel(data, sheetName, fileName, headers) {
-    if (data.length === 0) {
-        showToast('لا توجد بيانات للتصدير', 'warning');
-        return;
+async function addRep() {
+    const name = document.getElementById('repName').value.trim();
+    const id = document.getElementById('repId').value.trim();
+    const iqama = document.getElementById('repIqama').value.trim();
+    const expiry = document.getElementById('repExpiry').value;
+    const password = document.getElementById('repPassword').value.trim();
+
+    if (!name || !id || !iqama || !expiry || !password) {
+        showToast('الرجاء ملء جميع الحقول', 'error'); return;
     }
-    const wb = XLSX.utils.book_new();
-    const wsData = [headers, ...data];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const colWidths = headers.map((h, i) => {
-        const maxLength = Math.max(...data.map(row => String(row[i] || '').length), String(h).length);
-        return { wch: Math.min(maxLength + 4, 50) };
-    });
-    ws['!cols'] = colWidths;
-    ws['!rtl'] = true;
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, fileName + '.xlsx');
-    showToast('تم التصدير بنجاح', 'success');
-}
-
-function exportIqamaAlerts() {
-    const now = new Date();
-    const oneDay = 1000 * 60 * 60 * 24;
-    const oneMonth = oneDay * 30;
-    const urgentData = [];
-    const warningData = [];
-
-    reps.forEach(rep => {
-        const expiryDate = new Date(rep.expiry);
-        const diff = expiryDate - now;
-        const daysLeft = Math.ceil(diff / oneDay);
-        if (diff > 0 && diff <= oneMonth) {
-            urgentData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'عاجل - تنتهي خلال شهر']);
-        } else if (diff > oneMonth && diff <= oneDay * 60) {
-            warningData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'تنبيه - تنتهي خلال شهرين']);
-        }
-    });
-
-    if (urgentData.length === 0 && warningData.length === 0) {
-        showToast('لا توجد إقامات تحتاج تجديد حالياً', 'warning');
-        return;
+    if (reps.find(r => r.id === id)) {
+        showToast('هذا المعرف مستخدم مسبقاً', 'error'); return;
     }
 
-    const wb = XLSX.utils.book_new();
-    const headers = ['المندوب', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'];
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        const repData = { id, name, iqama, expiry, createdAt: new Date().toISOString() };
+        await repsRef.child(id).set(repData);
+        await repPasswordsRef.child(id).set(password);
 
-    if (urgentData.length > 0) {
-        const ws1 = XLSX.utils.aoa_to_sheet([headers, ...urgentData]);
-        ws1['!rtl'] = true;
-        ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
-        XLSX.utils.book_append_sheet(wb, ws1, 'إقامات عاجلة');
+        document.getElementById('repForm').reset();
+        document.getElementById('repSearch').value = '';
+        showToast('تم تسجيل المندوب وتعيين كلمة المرور بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ في الحفظ: ' + e.message, 'error');
+        setSyncStatus('offline', '🔴 غير متصل');
     }
-    if (warningData.length > 0) {
-        const ws2 = XLSX.utils.aoa_to_sheet([headers, ...warningData]);
-        ws2['!rtl'] = true;
-        ws2['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
-        XLSX.utils.book_append_sheet(wb, ws2, 'إقامات تحتاج متابعة');
+}
+
+async function deleteRep(id) {
+    if (!confirm('هل أنت متأكد من الحذف؟')) return;
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحذف...');
+        await repsRef.child(id).remove();
+        await repPasswordsRef.child(id).remove();
+        showToast('تم الحذف بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ في الحذف: ' + e.message, 'error');
     }
-
-    XLSX.writeFile(wb, 'تنبيهات_الإقامات_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    showToast('تم تصدير تنبيهات الإقامات', 'success');
 }
 
-function exportAllReps() {
-    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
-    const data = reps.map(rep => {
-        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
-        let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
-        return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status, new Date(rep.createdAt).toLocaleDateString('ar-SA')];
-    });
-    exportToExcel(data, 'المناديب', 'قائمة_المناديب', 
-        ['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة', 'تاريخ التسجيل']);
-}
+async function setRepPassword(repId) {
+    const rep = reps.find(r => r.id === repId);
+    if (!rep) return;
+    const newPass = prompt('أدخل كلمة المرور الجديدة للمندوب: ' + rep.name);
+    if (newPass === null) return;
+    if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
 
-function exportLoansHistory() {
-    if (loans.length === 0) { showToast('لا توجد عمليات مسجلة', 'warning'); return; }
-    const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
-    const data = sortedLoans.map(loan => [
-        loan.date, loan.repName, loan.type === 'loan' ? 'سلفة' : 'سداد',
-        loan.type === 'loan' ? parseFloat(loan.amount).toFixed(2) : '-' + parseFloat(loan.amount).toFixed(2),
-        parseFloat(loan.balanceAfter).toFixed(2), loan.notes || '-'
-    ]);
-    exportToExcel(data, 'سجل العمليات', 'سجل_السلف', 
-        ['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات']);
-}
-
-function exportDebtSummary() {
-    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
-    const debts = []; let totalDebt = 0;
-    reps.forEach(rep => {
-        const debt = getRepDebt(rep.id);
-        if (debt !== 0) {
-            debts.push({name: rep.name, id: rep.id, debt: debt, status: debt > 0 ? 'مديون' : 'له رصيد'});
-            if (debt > 0) totalDebt += debt;
-        }
-    });
-    debts.sort((a, b) => b.debt - a.debt);
-    const data = debts.map(d => [d.name, d.id, d.debt.toFixed(2), d.status]);
-    data.push(['', '', '', '']);
-    data.push(['الإجمالي', '', totalDebt.toFixed(2), 'ريال سعودي']);
-    exportToExcel(data, 'ملخص المديونيات', 'ملخص_المديونيات', 
-        ['المندوب', 'المعرف', 'المبلغ', 'الحالة']);
-}
-
-function exportLoansFull() {
-    const wb = XLSX.utils.book_new();
-    if (loans.length > 0) {
-        const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
-        const loansData = sortedLoans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
-        const ws1 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
-        ws1['!rtl'] = true; ws1['!cols'] = [{wch:12}, {wch:20}, {wch:10}, {wch:12}, {wch:12}, {wch:30}];
-        XLSX.utils.book_append_sheet(wb, ws1, 'سجل العمليات');
+    try {
+        await repPasswordsRef.child(repId).set(newPass.trim());
+        showToast('تم تحديث كلمة المرور بنجاح', 'success');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
-    const debts = []; let totalDebt = 0;
-    reps.forEach(rep => {
-        const debt = getRepDebt(rep.id);
-        if (debt !== 0) { debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']); if (debt > 0) totalDebt += debt; }
-    });
-    debts.sort((a, b) => parseFloat(b[2]) - parseFloat(a[2]));
-    debts.push(['', '', '', '']); debts.push(['الإجمالي', '', totalDebt.toFixed(2), '']);
-    const ws2 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
-    ws2['!rtl'] = true; ws2['!cols'] = [{wch:20}, {wch:15}, {wch:12}, {wch:15}];
-    XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المديونيات');
-    XLSX.writeFile(wb, 'تقرير_السلف_الشامل_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    showToast('تم تصدير التقرير الشامل', 'success');
 }
 
-function exportDailyOrders() {
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
-    const headers = ['المندوب', ...Array.from({length: daysInMonth}, (_, i) => (i + 1).toString()), 'الإجمالي'];
-    const data = [];
-    reps.forEach(rep => {
-        let total = 0;
-        const row = [rep.name];
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
-            row.push(val); total += parseInt(val);
-        }
-        row.push(total); data.push(row);
-    });
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-    ws['!rtl'] = true;
-    const colWidths = [{wch: 20}];
-    for (let i = 0; i < daysInMonth; i++) colWidths.push({wch: 6});
-    colWidths.push({wch: 10});
-    ws['!cols'] = colWidths;
-    XLSX.utils.book_append_sheet(wb, ws, 'الطلبات اليومية');
-    XLSX.writeFile(wb, `الطلبات_اليومية_${monthNames[currentMonth]}_${currentYear}.xlsx`);
-    showToast('تم تصدير الطلبات اليومية', 'success');
+function openEditModal(id) {
+    const rep = reps.find(r => r.id === id);
+    if (!rep) return;
+    document.getElementById('editOldId').value = id;
+    document.getElementById('editName').value = rep.name;
+    document.getElementById('editId').value = rep.id;
+    document.getElementById('editIqama').value = rep.iqama;
+    document.getElementById('editExpiry').value = rep.expiry;
+    document.getElementById('editModal').classList.add('active');
 }
 
-function exportStatsReport() {
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-    const stats = reps.map(rep => {
-        let total = 0, activeDays = 0;
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
-            total += parseInt(val); if (val > 0) activeDays++;
-        }
-        return {name: rep.name, id: rep.id, total, activeDays, avg: activeDays > 0 ? (total / activeDays).toFixed(1) : 0};
-    });
-    const sorted = [...stats].sort((a, b) => b.total - a.total);
-    const grandTotal = stats.reduce((s, r) => s + r.total, 0);
-    const wb = XLSX.utils.book_new();
-    const summaryData = [
-        ['البيان', 'القيمة'],
-        ['الشهر', monthNames[currentMonth] + ' ' + currentYear],
-        ['إجمالي الطلبات', grandTotal],
-        ['متوسط شهري', stats.length > 0 ? (grandTotal / stats.length).toFixed(1) : 0],
-        ['متوسط يومي', grandTotal > 0 ? (grandTotal / 30).toFixed(1) : 0],
-        ['المناديب النشطة', stats.filter(r => r.total > 0).length],
-        ['إجمالي المناديب', reps.length]
-    ];
-    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
-    ws1['!rtl'] = true; ws1['!cols'] = [{wch: 25}, {wch: 15}];
-    XLSX.utils.book_append_sheet(wb, ws1, 'إحصائيات عامة');
-    const detailData = sorted.map((r, i) => [i + 1, r.name, r.id, r.total, r.activeDays, r.avg]);
-    const ws2 = XLSX.utils.aoa_to_sheet([['#', 'المندوب', 'المعرف', 'الإجمالي', 'أيام نشطة', 'متوسط يومي'], ...detailData]);
-    ws2['!rtl'] = true; ws2['!cols'] = [{wch:5}, {wch:20}, {wch:15}, {wch:12}, {wch:12}, {wch:12}];
-    XLSX.utils.book_append_sheet(wb, ws2, 'تفصيل المناديب');
-    XLSX.writeFile(wb, `إحصائيات_${monthNames[currentMonth]}_${currentYear}.xlsx`);
-    showToast('تم تصدير الإحصائيات', 'success');
-}
+function closeModal() { document.getElementById('editModal').classList.remove('active'); }
 
-function exportFullReport() {
-    const wb = XLSX.utils.book_new();
-    const now = new Date().toISOString().split('T')[0];
-    if (reps.length > 0) {
-        const repsData = reps.map(rep => {
-            const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
-            let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
-            return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status];
+async function saveEdit() {
+    const oldId = document.getElementById('editOldId').value;
+    const newName = document.getElementById('editName').value.trim();
+    const newIqama = document.getElementById('editIqama').value.trim();
+    const newExpiry = document.getElementById('editExpiry').value;
+    if (!newName || !newIqama || !newExpiry) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
+
+    try {
+        setSyncStatus('syncing', '🔄 جاري التحديث...');
+        await repsRef.child(oldId).update({
+            name: newName, iqama: newIqama, expiry: newExpiry,
+            updatedAt: new Date().toISOString()
         });
-        const ws1 = XLSX.utils.aoa_to_sheet([['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'], ...repsData]);
-        ws1['!rtl'] = true; ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:15}, {wch:15}];
-        XLSX.utils.book_append_sheet(wb, ws1, 'المناديب');
+        closeModal();
+        showToast('تم تحديث البيانات بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
-    if (loans.length > 0) {
-        const loansData = loans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
-        const ws2 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
-        ws2['!rtl'] = true;
-        XLSX.utils.book_append_sheet(wb, ws2, 'السلف');
-    }
-    const debts = [];
-    reps.forEach(rep => {
-        const debt = getRepDebt(rep.id);
-        if (debt !== 0) debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']);
-    });
-    if (debts.length > 0) {
-        const ws3 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
-        ws3['!rtl'] = true;
-        XLSX.utils.book_append_sheet(wb, ws3, 'المديونيات');
-    }
-    XLSX.writeFile(wb, 'التقرير_الشامل_' + now + '.xlsx');
-    showToast('تم تصدير التقرير الشامل', 'success');
 }
 
-// ========== باقي الدوال الأصلية ==========
+let repsFiltered = [];
+
+function renderReps() {
+    const tbody = document.getElementById('repsTableBody');
+    const sortedReps = [...reps].sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+
+    if (sortedReps.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا يوجد مناديب مسجلين</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = sortedReps.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
+        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-semibold">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+function filterRepsTable() {
+    const searchTerm = document.getElementById('repSearch').value.trim().toLowerCase();
+    const tbody = document.getElementById('repsTableBody');
+    if (!searchTerm) { renderReps(); return; }
+
+    repsFiltered = reps.filter(rep => 
+        rep.name.toLowerCase().includes(searchTerm) ||
+        rep.id.toLowerCase().includes(searchTerm) ||
+        rep.iqama.includes(searchTerm)
+    );
+    repsFiltered.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+
+    if (repsFiltered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا توجد نتائج مطابقة للبحث</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = repsFiltered.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
+        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-6 py-4 font-semibold">${rep.name}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
+                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
+                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
+                <td class="px-6 py-4 text-center">
+                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
+                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
+                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+// ========== HOME STATS ==========
 
 function renderHomeStats() {
     const now = new Date();
@@ -1324,7 +1356,8 @@ function renderHomeStats() {
         const expiryDate = new Date(rep.expiry);
         const diff = expiryDate - now;
         const daysLeft = Math.ceil(diff / oneDay);
-        if (diff < 0) {} else if (diff <= oneMonth) { expiring1Month++; urgentList.push({...rep, daysLeft}); }
+        if (diff < 0) {} 
+        else if (diff <= oneMonth) { expiring1Month++; urgentList.push({...rep, daysLeft}); }
         else if (diff <= twoMonths) { expiring2Months++; warningList.push({...rep, daysLeft}); }
         else { validCount++; }
     });
@@ -1367,205 +1400,7 @@ function renderHomeStats() {
     }
 }
 
-function addRep() {
-    const name = document.getElementById('repName').value.trim();
-    const id = document.getElementById('repId').value.trim();
-    const iqama = document.getElementById('repIqama').value.trim();
-    const expiry = document.getElementById('repExpiry').value;
-    const password = document.getElementById('repPassword').value.trim();
-
-    if (!name || !id || !iqama || !expiry || !password) { 
-        showToast('الرجاء ملء جميع الحقول', 'error'); 
-        return; 
-    }
-
-    // Ensure reps is an array
-    if (!Array.isArray(reps)) { 
-        console.error('reps is not array:', reps); 
-        reps = []; 
-    }
-
-    // Check if ID exists
-    const existing = reps.find(r => r && r.id === id);
-    if (existing) { 
-        showToast('هذا المعرف (' + id + ') مستخدم مسبقاً للمندوب: ' + existing.name, 'error'); 
-        return; 
-    }
-
-    // Add new rep
-    const newRep = {id, name, iqama, expiry, createdAt: new Date().toISOString()};
-    reps.push(newRep);
-
-    // Save password locally
-    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-    repPasswords[id] = password;
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-
-    // Save everything to Firebase
-    Promise.all([
-        syncRepsToFirebase(),
-        syncPasswordsToFirebase()
-    ]).then(() => {
-        document.getElementById('repForm').reset(); 
-        document.getElementById('repSearch').value = '';
-        renderReps(); 
-        renderHomeStats(); 
-        showToast('تم تسجيل المندوب ورفع البيانات للسحابة بنجاح', 'success');
-    }).catch(err => {
-        console.error('Firebase sync failed:', err);
-        // Still save locally as fallback
-        localStorage.setItem('reps', JSON.stringify(reps));
-        document.getElementById('repForm').reset();
-        document.getElementById('repSearch').value = '';
-        renderReps(); 
-        renderHomeStats();
-        showToast('تم التسجيل محلياً فقط - تأكد من الاتصال بالسحابة', 'warning');
-    });
-}
-
-function deleteRep(id) {
-    if (!confirm('هل أنت متأكد من الحذف؟')) return;
-    reps = reps.filter(r => r.id !== id); saveReps(); 
-    // حذف كلمة المرور أيضاً + sync
-    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-    delete repPasswords[id];
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    syncPasswordsToFirebase().catch(err => console.error('Password delete sync failed:', err));
-    if (document.getElementById('repSearch').value) {
-        filterRepsTable();
-    } else {
-        renderReps(); 
-    }
-    renderHomeStats(); 
-    showToast('تم الحذف بنجاح', 'success');
-}
-
-// تعيين/تغيير كلمة مرور المندوب
-function setRepPassword(repId) {
-    const rep = reps.find(r => r.id === repId);
-    if (!rep) return;
-    const newPass = prompt('أدخل كلمة المرور الجديدة للمندوب: ' + rep.name);
-    if (newPass === null) return;
-    if (!newPass.trim()) { showToast('كلمة المرور لا يمكن أن تكون فارغة', 'error'); return; }
-    let repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-    repPasswords[repId] = newPass.trim();
-    localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    // SYNC TO FIREBASE
-    syncPasswordsToFirebase().then(() => {
-        showToast('تم تحديث كلمة المرور بنجاح ورفعها للسحابة', 'success');
-    }).catch(err => {
-        console.error('Password sync failed:', err);
-        showToast('تم الحفظ محلياً لكن فشل الرفع للسحابة', 'warning');
-    });
-}
-
-function openEditModal(id) {
-    const rep = reps.find(r => r.id === id);
-    if (!rep) return;
-    document.getElementById('editOldId').value = id;
-    document.getElementById('editName').value = rep.name;
-    document.getElementById('editId').value = rep.id;
-    document.getElementById('editIqama').value = rep.iqama;
-    document.getElementById('editExpiry').value = rep.expiry;
-    document.getElementById('editModal').classList.add('active');
-}
-
-function closeModal() { document.getElementById('editModal').classList.remove('active'); }
-
-function saveEdit() {
-    const oldId = document.getElementById('editOldId').value;
-    const newName = document.getElementById('editName').value.trim();
-    const newIqama = document.getElementById('editIqama').value.trim();
-    const newExpiry = document.getElementById('editExpiry').value;
-    if (!newName || !newIqama || !newExpiry) { showToast('الرجاء ملء جميع الحقول', 'error'); return; }
-    const index = reps.findIndex(r => r.id === oldId);
-    if (index !== -1) {
-        reps[index].name = newName; reps[index].iqama = newIqama; reps[index].expiry = newExpiry;
-        reps[index].updatedAt = new Date().toISOString();
-        saveReps(); 
-        if (document.getElementById('repSearch').value) {
-            filterRepsTable();
-        } else {
-            renderReps(); 
-        }
-        renderHomeStats(); closeModal(); showToast('تم تحديث البيانات بنجاح', 'success');
-    }
-}
-
-let repsFiltered = [];
-
-function renderReps() {
-    const tbody = document.getElementById('repsTableBody');
-
-    // Sort by expiry date ascending (earliest first)
-    const sortedReps = [...reps].sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
-
-    if (sortedReps.length === 0) { 
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا يوجد مناديب مسجلين</td></tr>'; 
-        return; 
-    }
-
-    tbody.innerHTML = sortedReps.map(rep => {
-        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
-        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
-        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
-        return `
-            <tr class="border-b hover:bg-slate-50 transition">
-                <td class="px-6 py-4 font-semibold">${rep.name}</td>
-                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
-                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
-                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
-                <td class="px-6 py-4 text-center">
-                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-                </td>
-            </tr>`;
-    }).join('');
-}
-
-function filterRepsTable() {
-    const searchTerm = document.getElementById('repSearch').value.trim().toLowerCase();
-    const tbody = document.getElementById('repsTableBody');
-
-    if (!searchTerm) {
-        renderReps();
-        return;
-    }
-
-    // Filter reps
-    repsFiltered = reps.filter(rep => 
-        rep.name.toLowerCase().includes(searchTerm) ||
-        rep.id.toLowerCase().includes(searchTerm) ||
-        rep.iqama.includes(searchTerm)
-    );
-
-    // Sort filtered by expiry ascending
-    repsFiltered.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
-
-    if (repsFiltered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-slate-400">لا توجد نتائج مطابقة للبحث</td></tr>';
-        return;
-    }
-
-    tbody.innerHTML = repsFiltered.map(rep => {
-        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
-        const color = daysLeft < 0 ? 'text-red-600' : daysLeft < 30 ? 'text-orange-600' : 'text-emerald-600';
-        const badgeColor = daysLeft < 0 ? 'bg-red-100 text-red-700' : daysLeft < 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
-        return `
-            <tr class="border-b hover:bg-slate-50 transition">
-                <td class="px-6 py-4 font-semibold">${rep.name}</td>
-                <td class="px-6 py-4 text-slate-600 font-mono">${rep.id}</td>
-                <td class="px-6 py-4 text-slate-600 font-mono">${rep.iqama}</td>
-                <td class="px-6 py-4"><span class="${color} font-bold">${rep.expiry}</span> <span class="mr-2 px-2 py-0.5 rounded-full text-xs ${badgeColor}">${daysLeft < 0 ? 'منتهية' : daysLeft < 30 ? 'تنتهي قريباً' : 'سارية'}</span></td>
-                <td class="px-6 py-4 text-center">
-                    <button onclick="openEditModal('${rep.id}')" class="text-blue-600 hover:bg-blue-50 px-3 py-2 rounded-lg transition mr-1" title="تعديل"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></button>
-                    <button onclick="setRepPassword('${rep.id}')" class="text-purple-600 hover:bg-purple-50 px-3 py-2 rounded-lg transition mr-1" title="تغيير كلمة المرور"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></button>
-                    <button onclick="deleteRep('${rep.id}')" class="text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg transition" title="حذف"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-                </td>
-            </tr>`;
-    }).join('');
-}
+// ========== LOANS MANAGEMENT ==========
 
 function initLoansPage() {
     const loanRep = document.getElementById('loanRep');
@@ -1577,96 +1412,105 @@ function initLoansPage() {
         searchRep.innerHTML += `<option value="${rep.id}">${rep.name}</option>`;
     });
     document.getElementById('loanDate').value = new Date().toISOString().split('T')[0];
-    renderLoans(); renderDebtSummary();
+    renderLoans();
+    renderDebtSummary();
 }
 
 function getRepDebt(repId) {
     let debt = 0;
     loans.filter(l => l.repId === repId).forEach(loan => {
-        if (loan.type === 'loan') debt += parseFloat(loan.amount); else debt -= parseFloat(loan.amount);
+        if (loan.type === 'loan') debt += parseFloat(loan.amount);
+        else debt -= parseFloat(loan.amount);
     });
     return debt;
 }
 
-function addLoan() {
+async function addLoan() {
     const repId = document.getElementById('loanRep').value;
     const amount = parseFloat(document.getElementById('loanAmount').value);
     const type = document.getElementById('loanType').value;
     const date = document.getElementById('loanDate').value;
     const notes = document.getElementById('loanNotes').value.trim();
-    if (!repId || !amount || amount <= 0 || !type || !date) { showToast('الرجاء ملء جميع الحقول الإلزامية', 'error'); return; }
+
+    if (!repId || !amount || amount <= 0 || !type || !date) {
+        showToast('الرجاء ملء جميع الحقول الإلزامية', 'error'); return;
+    }
     const rep = reps.find(r => r.id === repId);
     if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
     if (type === 'payment') {
         const currentDebt = getRepDebt(repId);
         if (amount > currentDebt) { showToast('مبلغ السداد أكبر من الدين الحالي (' + currentDebt.toFixed(2) + ')', 'error'); return; }
     }
+
     const newBalance = type === 'loan' ? getRepDebt(repId) + amount : getRepDebt(repId) - amount;
-    loans.push({id: Date.now().toString(), repId, repName: rep.name, amount, type, date, notes, balanceAfter: newBalance, createdAt: new Date().toISOString()});
-    saveLoans(); document.getElementById('loanForm').reset(); document.getElementById('loanDate').value = new Date().toISOString().split('T')[0];
-    renderLoans(); renderDebtSummary(); showToast(type === 'loan' ? 'تم تسجيل السلفة بنجاح' : 'تم تسجيل السداد بنجاح', 'success');
-}
+    const loanData = {
+        repId, repName: rep.name, amount, type, date, notes,
+        balanceAfter: newBalance, createdAt: new Date().toISOString()
+    };
 
-function deleteLoan(loanId) {
-    if (!confirm('هل أنت متأكد من حذف هذه العملية؟')) return;
-    loans = loans.filter(l => l.id !== loanId); saveLoans(); 
-    if (document.getElementById('loansSearch').value) {
-        filterLoansTable();
-    } else {
-        renderLoans(); 
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await loansRef.push().set(loanData);
+        document.getElementById('loanForm').reset();
+        document.getElementById('loanDate').value = new Date().toISOString().split('T')[0];
+        showToast(type === 'loan' ? 'تم تسجيل السلفة بنجاح' : 'تم تسجيل السداد بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
-    renderDebtSummary(); showToast('تم حذف العملية', 'success');
 }
 
-function clearAllLoans() {
+async function deleteLoan(loanId) {
+    if (!confirm('هل أنت متأكد من حذف هذه العملية؟')) return;
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحذف...');
+        await loansRef.child(loanId).remove();
+        showToast('تم حذف العملية', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
+}
+
+async function clearAllLoans() {
     if (!confirm('هل أنت متأكد من مسح جميع العمليات؟')) return;
-    loans = []; saveLoans(); 
-    document.getElementById('loansSearch').value = '';
-    renderLoans(); renderDebtSummary(); showToast('تم مسح جميع العمليات', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري المسح...');
+        await loansRef.remove();
+        showToast('تم مسح جميع العمليات', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
 
 let loansFiltered = [];
 
 function filterLoansTable() {
     const searchTerm = document.getElementById('loansSearch').value.trim().toLowerCase();
-
-    if (!searchTerm) {
-        loansFiltered = [];
-        renderLoansTable();
-        return;
-    }
-
+    if (!searchTerm) { loansFiltered = []; renderLoansTable(); return; }
     loansFiltered = loans.filter(loan => 
         loan.repName.toLowerCase().includes(searchTerm) ||
         (loan.notes && loan.notes.toLowerCase().includes(searchTerm)) ||
         loan.date.includes(searchTerm) ||
         loan.amount.toString().includes(searchTerm)
     );
-
     renderLoansTable();
 }
 
 function renderLoansTable() {
     const tbody = document.getElementById('loansTableBody');
     const emptyDiv = document.getElementById('loansEmpty');
-
     const entriesToRender = loansFiltered.length > 0 || document.getElementById('loansSearch').value
-        ? loansFiltered 
-        : [...loans];
+        ? loansFiltered : [...loans];
 
     if (entriesToRender.length === 0) {
         tbody.innerHTML = '';
-        if (document.getElementById('loansSearch').value) {
-            emptyDiv.classList.remove('hidden');
-            emptyDiv.querySelector('p').textContent = 'لا توجد نتائج مطابقة للبحث';
-        } else {
-            emptyDiv.classList.remove('hidden');
-            emptyDiv.querySelector('p').textContent = 'لا توجد عمليات مسجلة';
-        }
+        emptyDiv.classList.remove('hidden');
         return;
     }
-
     emptyDiv.classList.add('hidden');
+
     const sortedLoans = [...entriesToRender].sort((a, b) => new Date(b.date) - new Date(a.date));
     tbody.innerHTML = sortedLoans.map(loan => {
         const typeBadge = loan.type === 'loan' ? '<span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">سلفة</span>' : '<span class="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">سداد</span>';
@@ -1741,6 +1585,8 @@ function searchDebt() {
     else { amountDiv.className = 'text-3xl font-bold debt-zero'; statusDiv.textContent = 'لا يوجد دين'; }
 }
 
+// ========== DAILY ORDERS ==========
+
 function changeMonth(delta) {
     currentMonth += delta;
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
@@ -1753,12 +1599,14 @@ function renderDaily() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     document.getElementById('monthLabel').textContent = `${monthNames[currentMonth]} ${currentYear}`;
     if (reps.length === 0) { document.getElementById('dailyTable').innerHTML = '<div class="text-center py-12 text-slate-400">سجل مناديب أولاً</div>'; return; }
+
     let html = `<div class="bg-white rounded-2xl shadow-lg overflow-hidden"><div class="overflow-x-auto"><table class="w-full"><thead><tr class="bg-slate-50"><th class="sticky right-0 bg-slate-50 px-4 py-3 text-right border-l z-10">المندوب</th>`;
     for (let d = 1; d <= daysInMonth; d++) {
         const isToday = d === new Date().getDate() && currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
         html += `<th class="px-2 py-3 text-center text-xs ${isToday ? 'bg-blue-100 text-blue-700' : ''}">${d}</th>`;
     }
     html += `<th class="px-4 py-3 text-center font-bold text-emerald-600 bg-emerald-50">الإجمالي</th></tr></thead><tbody>`;
+
     reps.forEach((rep, idx) => {
         let total = 0;
         html += `<tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}"><td class="sticky right-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'} px-4 py-2 border-l z-10 font-semibold">${rep.name}</td>`;
@@ -1775,9 +1623,11 @@ function renderDaily() {
     document.getElementById('dailyTable').innerHTML = html;
 }
 
-function saveOrders() {
+async function saveOrders() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     let hasData = false;
+    const newOrders = {...orders};
+
     reps.forEach(rep => {
         for (let d = 1; d <= daysInMonth; d++) {
             const input = document.getElementById(`order_${rep.id}_${d}`);
@@ -1786,15 +1636,25 @@ function saveOrders() {
                 if (val > 0) {
                     hasData = true;
                     const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-                    if (!orders[dateStr]) orders[dateStr] = {};
-                    orders[dateStr][rep.id] = val;
+                    if (!newOrders[dateStr]) newOrders[dateStr] = {};
+                    newOrders[dateStr][rep.id] = val;
                 }
             }
         }
     });
     if (!hasData) { showToast('أدخل طلبات أولاً', 'warning'); return; }
-    saveOrdersData(); renderDaily(); showToast('تم الحفظ بنجاح', 'success');
+
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await ordersRef.set(newOrders);
+        showToast('تم الحفظ بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
+
+// ========== STATS ==========
 
 function renderStats() {
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -1810,16 +1670,19 @@ function renderStats() {
     const sorted = [...stats].sort((a, b) => b.total - a.total);
     const grandTotal = stats.reduce((s, r) => s + r.total, 0);
     const active = stats.filter(r => r.total > 0).length;
+
     document.getElementById('totalOrders').textContent = grandTotal;
     document.getElementById('avgMonthly').textContent = stats.length > 0 ? (grandTotal / stats.length).toFixed(1) : 0;
     document.getElementById('avgDaily').textContent = grandTotal > 0 ? (grandTotal / 30).toFixed(1) : 0;
     document.getElementById('activeReps').textContent = active;
+
     document.getElementById('top5List').innerHTML = sorted.slice(0, 5).map((r, i) => `
         <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
             <div class="w-10 h-10 rounded-full ${i === 0 ? 'bg-yellow-400' : 'bg-blue-500'} text-white flex items-center justify-center font-bold">${i + 1}</div>
             <div class="flex-1"><div class="font-bold">${r.name}</div><div class="text-sm text-slate-500">${r.activeDays} يوم نشط</div></div>
             <div class="font-bold text-xl text-slate-700">${r.total}</div>
         </div>`).join('');
+
     document.getElementById('bottom5List').innerHTML = sorted.slice(-5).reverse().map(r => `
         <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
             <div class="w-10 h-10 rounded-full bg-red-400 text-white flex items-center justify-center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg></div>
@@ -1828,12 +1691,7 @@ function renderStats() {
         </div>`).join('');
 }
 
-// ========== دوال إدارة السيارات ==========
-
-let cars = JSON.parse(localStorage.getItem('cars') || '[]');
-let carsFilter = 'all';
-
-function saveCars() { localStorage.setItem('cars', JSON.stringify(cars)); }
+// ========== CARS MANAGEMENT ==========
 
 function initCarsPage() {
     const carRep = document.getElementById('carRep');
@@ -1845,7 +1703,7 @@ function initCarsPage() {
     renderCars();
 }
 
-function addCar() {
+async function addCar() {
     const repId = document.getElementById('carRep').value;
     const office = document.getElementById('carOffice').value.trim();
     const type = document.getElementById('carType').value.trim();
@@ -1858,28 +1716,31 @@ function addCar() {
     if (!repId || !office || !type || !plate || !rent || !pickup) {
         showToast('الرجاء ملء جميع الحقول الإلزامية', 'error'); return;
     }
-
     const rep = reps.find(r => r.id === repId);
     if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
-
     if (returnDate && new Date(returnDate) <= new Date(pickup)) {
         showToast('تاريخ التسليم يجب أن يكون بعد تاريخ الاستلام', 'error'); return;
     }
 
-    cars.push({
-        id: Date.now().toString(),
-        repId, repName: rep.name,
-        office, type, plate, rent, pickup, return: returnDate, notes,
-        status: 'active',
+    const carData = {
+        repId, repName: rep.name, office, type, plate, rent, pickup,
+        return: returnDate, notes, status: 'active',
         createdAt: new Date().toISOString()
-    });
+    };
 
-    saveCars(); document.getElementById('carForm').reset();
-    document.getElementById('carPickup').value = new Date().toISOString().split('T')[0];
-    renderCars(); showToast('تم تسجيل السيارة بنجاح', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await carsRef.push().set(carData);
+        document.getElementById('carForm').reset();
+        document.getElementById('carPickup').value = new Date().toISOString().split('T')[0];
+        showToast('تم تسجيل السيارة بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
 
-function returnCar(carId) {
+async function returnCar(carId) {
     const car = cars.find(c => c.id === carId);
     if (!car) return;
     document.getElementById('returnCarId').value = carId;
@@ -1890,29 +1751,38 @@ function returnCar(carId) {
     document.getElementById('returnModal').classList.add('active');
 }
 
-function closeReturnModal() {
-    document.getElementById('returnModal').classList.remove('active');
-}
+function closeReturnModal() { document.getElementById('returnModal').classList.remove('active'); }
 
-function saveReturn() {
+async function saveReturn() {
     const carId = document.getElementById('returnCarId').value;
     const returnDate = document.getElementById('returnDate').value;
     const returnNotes = document.getElementById('returnNotes').value.trim();
-
     if (!returnDate) { showToast('الرجاء إدخال تاريخ التسليم الفعلي', 'error'); return; }
 
-    const index = cars.findIndex(c => c.id === carId);
-    if (index !== -1) {
-        cars[index].status = 'returned';
-        cars[index].actualReturn = returnDate;
-        if (returnNotes) cars[index].returnNotes = returnNotes;
-        saveCars(); renderCars(); closeReturnModal(); showToast('تم تسليم السيارة بنجاح', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري التحديث...');
+        await carsRef.child(carId).update({
+            status: 'returned', actualReturn: returnDate,
+            returnNotes: returnNotes || null
+        });
+        closeReturnModal();
+        showToast('تم تسليم السيارة بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
 }
 
-function deleteCar(carId) {
+async function deleteCar(carId) {
     if (!confirm('هل أنت متأكد من حذف بيانات السيارة؟')) return;
-    cars = cars.filter(c => c.id !== carId); saveCars(); renderCars(); showToast('تم الحذف', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحذف...');
+        await carsRef.child(carId).remove();
+        showToast('تم الحذف', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
 
 function filterCars(filter) {
@@ -1930,11 +1800,8 @@ function filterCars(filter) {
 function renderCars() {
     const tbody = document.getElementById('carsTableBody');
     const emptyDiv = document.getElementById('carsEmpty');
-
     let filtered = cars;
     if (carsFilter !== 'all') filtered = cars.filter(c => c.status === carsFilter);
-
-    // Sort by pickup date descending
     filtered.sort((a, b) => new Date(b.pickup) - new Date(a.pickup));
 
     if (filtered.length === 0) { tbody.innerHTML = ''; emptyDiv.classList.remove('hidden'); return; }
@@ -1944,17 +1811,13 @@ function renderCars() {
     tbody.innerHTML = filtered.map(car => {
         const isReturned = car.status === 'returned';
         const hasReturnDate = car.return && car.return !== '';
-        let daysLeft = null;
-        let isOverdue = false;
-        let isNear = false;
-
+        let daysLeft = null, isOverdue = false, isNear = false;
         if (hasReturnDate && !isReturned) {
             const returnDateObj = new Date(car.return);
             daysLeft = Math.ceil((returnDateObj - now) / (1000 * 60 * 60 * 24));
             isOverdue = daysLeft < 0;
             isNear = daysLeft >= 0 && daysLeft <= 7;
         }
-
         let statusBadge = '';
         if (isReturned) statusBadge = '<span class="px-3 py-1 rounded-full text-xs bg-slate-100 text-slate-600 font-bold">مُسلّمة</span>';
         else if (isOverdue) statusBadge = `<span class="px-3 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">متأخرة (${Math.abs(daysLeft)} يوم)</span>`;
@@ -1982,18 +1845,6 @@ function renderCars() {
     }).join('');
 }
 
-function exportCarsList() {
-    if (cars.length === 0) { showToast('لا توجد سيارات مسجلة', 'warning'); return; }
-    const data = cars.map(car => [
-        car.repName, car.office, car.type, car.plate,
-        parseFloat(car.rent).toFixed(2), car.pickup, car.return,
-        car.status === 'active' ? 'نشطة' : 'مُسلّمة',
-        car.notes || '-'
-    ]);
-    exportToExcel(data, 'السيارات', 'قائمة_السيارات',
-        ['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'ملاحظات']);
-}
-
 function openEditCarModal(carId) {
     const car = cars.find(c => c.id === carId);
     if (!car) return;
@@ -2006,73 +1857,32 @@ function openEditCarModal(carId) {
     document.getElementById('editCarModal').classList.add('active');
 }
 
-function closeCarModal() {
-    document.getElementById('editCarModal').classList.remove('active');
-}
+function closeCarModal() { document.getElementById('editCarModal').classList.remove('active'); }
 
-function saveCarEdit() {
+async function saveCarEdit() {
     const carId = document.getElementById('editCarId').value;
     const newReturn = document.getElementById('editCarReturn').value;
     const newNotes = document.getElementById('editCarNotes').value.trim();
-
-    const index = cars.findIndex(c => c.id === carId);
-    if (index !== -1) {
-        const car = cars[index];
-        // Validate: if return date exists, it must be after pickup
-        if (newReturn && new Date(newReturn) <= new Date(car.pickup)) {
-            showToast('تاريخ التسليم يجب أن يكون بعد تاريخ الاستلام (' + car.pickup + ')', 'error');
-            return;
-        }
-        cars[index].return = newReturn || '';
-        cars[index].notes = newNotes;
-        cars[index].updatedAt = new Date().toISOString();
-        saveCars(); renderCars(); closeCarModal();
+    const car = cars.find(c => c.id === carId);
+    if (!car) return;
+    if (newReturn && new Date(newReturn) <= new Date(car.pickup)) {
+        showToast('تاريخ التسليم يجب أن يكون بعد تاريخ الاستلام (' + car.pickup + ')', 'error'); return;
+    }
+    try {
+        setSyncStatus('syncing', '🔄 جاري التحديث...');
+        await carsRef.child(carId).update({
+            return: newReturn || null, notes: newNotes || null,
+            updatedAt: new Date().toISOString()
+        });
+        closeCarModal();
         showToast(newReturn ? 'تم تحديث تاريخ التسليم بنجاح' : 'تم حذف تاريخ التسليم', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
 }
 
-function exportCarsFull() {
-    const wb = XLSX.utils.book_new();
-    if (cars.length > 0) {
-        const carsData = cars.map(car => [
-            car.repName, car.office, car.type, car.plate,
-            parseFloat(car.rent).toFixed(2), car.pickup, car.return,
-            car.status === 'active' ? 'نشطة' : 'مُسلّمة',
-            car.actualReturn || '-', car.notes || '-'
-        ]);
-        const ws = XLSX.utils.aoa_to_sheet([
-            ['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'تاريخ التسليم الفعلي', 'ملاحظات'],
-            ...carsData
-        ]);
-        ws['!rtl'] = true;
-        ws['!cols'] = [{wch:20}, {wch:20}, {wch:20}, {wch:15}, {wch:12}, {wch:15}, {wch:15}, {wch:12}, {wch:15}, {wch:30}];
-        XLSX.utils.book_append_sheet(wb, ws, 'السيارات');
-    }
-    XLSX.writeFile(wb, 'تقرير_السيارات_' + new Date().toISOString().split('T')[0] + '.xlsx');
-    showToast('تم تصدير التقرير', 'success');
-}
-
-// Update showPage to handle cars and bank pages
-const originalShowPage = showPage;
-showPage = function(page) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(page + 'Page').classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('nav_' + page).classList.add('active');
-    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
-    if (page === 'daily') renderDaily();
-    if (page === 'stats') renderStats();
-    if (page === 'home') renderHomeStats();
-    if (page === 'loans') initLoansPage();
-    if (page === 'cars') initCarsPage();
-    if (page === 'bank') initBankPage();
-};
-
-// ========== دوال إدارة البنك ==========
-
-let bankEntries = JSON.parse(localStorage.getItem('bankEntries') || '[]');
-
-function saveBank() { localStorage.setItem('bankEntries', JSON.stringify(bankEntries)); }
+// ========== BANK MANAGEMENT ==========
 
 function initBankPage() {
     document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
@@ -2080,26 +1890,17 @@ function initBankPage() {
     renderBank();
 }
 
-function addBankEntry() {
+async function addBankEntry() {
     const date = document.getElementById('bankDate').value;
     const desc = document.getElementById('bankDesc').value.trim();
     const debit = parseFloat(document.getElementById('bankDebit').value) || 0;
     const credit = parseFloat(document.getElementById('bankCredit').value) || 0;
     const notes = document.getElementById('bankNotes').value.trim();
 
-    if (!date || !desc) {
-        showToast('الرجاء ملء الحقول الإلزامية', 'error'); return;
-    }
+    if (!date || !desc) { showToast('الرجاء ملء الحقول الإلزامية', 'error'); return; }
+    if (debit === 0 && credit === 0) { showToast('يجب إدخال قيمة في مدين أو دائن', 'error'); return; }
+    if (debit > 0 && credit > 0) { showToast('لا يمكن إدخال قيمة في مدين ودائن معاً', 'error'); return; }
 
-    if (debit === 0 && credit === 0) {
-        showToast('يجب إدخال قيمة في مدين أو دائن', 'error'); return;
-    }
-
-    if (debit > 0 && credit > 0) {
-        showToast('لا يمكن إدخال قيمة في مدين ودائن معاً', 'error'); return;
-    }
-
-    // Auto-calculate balance
     const sorted = [...bankEntries].sort((a, b) => {
         const d = new Date(a.date) - new Date(b.date);
         return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
@@ -2107,56 +1908,49 @@ function addBankEntry() {
     const lastBalance = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
     const balance = lastBalance + credit - debit;
 
-    bankEntries.push({
-        id: Date.now().toString(),
-        date, desc, debit, credit, balance, notes,
-        createdAt: new Date().toISOString()
-    });
+    const entryData = { date, desc, debit, credit, balance, notes, createdAt: new Date().toISOString() };
 
-    saveBank(); document.getElementById('bankForm').reset();
-    document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
-    updateBalancePreview();
-    renderBank(); showToast('تم تسجيل العملية بنجاح', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await bankEntriesRef.push().set(entryData);
+        document.getElementById('bankForm').reset();
+        document.getElementById('bankDate').value = new Date().toISOString().split('T')[0];
+        updateBalancePreview();
+        showToast('تم تسجيل العملية بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
 
-// Auto-update balance preview when typing
 function updateBalancePreview() {
     const debit = parseFloat(document.getElementById('bankDebit').value) || 0;
     const credit = parseFloat(document.getElementById('bankCredit').value) || 0;
-
     const sorted = [...bankEntries].sort((a, b) => {
         const d = new Date(a.date) - new Date(b.date);
         return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
     });
     const lastBalance = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
     const newBalance = lastBalance + credit - debit;
-
     document.getElementById('bankBalancePreview').textContent = newBalance.toFixed(2);
     document.getElementById('bankBalance').value = newBalance;
 }
 
-// Filter bank table
 let bankFilteredEntries = [];
 
 function filterBankTable() {
     const searchTerm = document.getElementById('bankSearch').value.trim().toLowerCase();
     const filterType = document.getElementById('bankFilter').value;
-
     bankFilteredEntries = bankEntries.filter(entry => {
-        // Search filter
         const matchesSearch = !searchTerm || 
             entry.desc.toLowerCase().includes(searchTerm) || 
             (entry.notes && entry.notes.toLowerCase().includes(searchTerm)) ||
             entry.date.includes(searchTerm);
-
-        // Type filter
         let matchesType = true;
         if (filterType === 'debit') matchesType = entry.debit > 0;
         else if (filterType === 'credit') matchesType = entry.credit > 0;
-
         return matchesSearch && matchesType;
     });
-
     renderBankTable();
 }
 
@@ -2164,35 +1958,24 @@ function renderBankTable() {
     const tbody = document.getElementById('bankTableBody');
     const emptyDiv = document.getElementById('bankEmpty');
     const entriesToRender = bankFilteredEntries.length > 0 || document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all' 
-        ? bankFilteredEntries 
-        : [...bankEntries];
+        ? bankFilteredEntries : [...bankEntries];
 
     if (entriesToRender.length === 0) {
         tbody.innerHTML = '';
-        if (document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all') {
-            emptyDiv.classList.remove('hidden');
-            emptyDiv.querySelector('p').textContent = 'لا توجد نتائج مطابقة للبحث';
-        } else {
-            emptyDiv.classList.remove('hidden');
-            emptyDiv.querySelector('p').textContent = 'لا توجد عمليات مسجلة';
-        }
+        emptyDiv.classList.remove('hidden');
         return;
     }
-
     emptyDiv.classList.add('hidden');
 
-    // Sort by date ascending
     const sorted = [...entriesToRender].sort((a, b) => {
         const d = new Date(a.date) - new Date(b.date);
         return d !== 0 ? d : new Date(a.createdAt) - new Date(b.createdAt);
     });
-
     let totalDebit = 0, totalCredit = 0;
 
     tbody.innerHTML = sorted.map((entry, idx) => {
         totalDebit += entry.debit;
         totalCredit += entry.credit;
-
         return `
             <tr class="border-b hover:bg-slate-50 transition">
                 <td class="px-4 py-3 text-slate-500 text-sm">${idx + 1}</td>
@@ -2208,7 +1991,6 @@ function renderBankTable() {
             </tr>`;
     }).join('');
 
-    // Update summary based on filtered or all entries
     const currentBal = sorted.length > 0 ? sorted[sorted.length - 1].balance : 0;
     document.getElementById('currentBalance').textContent = currentBal.toFixed(2);
     document.getElementById('totalDebit').textContent = totalDebit.toFixed(2);
@@ -2216,48 +1998,423 @@ function renderBankTable() {
     document.getElementById('totalEntries').textContent = entriesToRender.length;
 }
 
-function deleteBankEntry(entryId) {
+async function deleteBankEntry(entryId) {
     if (!confirm('هل أنت متأكد من حذف هذه العملية؟')) return;
-    bankEntries = bankEntries.filter(e => e.id !== entryId);
-    saveBank(); 
-    // Re-apply filter if active
-    if (document.getElementById('bankSearch').value || document.getElementById('bankFilter').value !== 'all') {
-        filterBankTable();
-    } else {
-        renderBank();
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحذف...');
+        await bankEntriesRef.child(entryId).remove();
+        showToast('تم حذف العملية', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
-    showToast('تم حذف العملية', 'success');
 }
 
-function clearAllBank() {
+async function clearAllBank() {
     if (!confirm('هل أنت متأكد من مسح جميع العمليات البنكية؟')) return;
-    bankEntries = []; saveBank(); 
-    document.getElementById('bankSearch').value = '';
-    document.getElementById('bankFilter').value = 'all';
-    renderBank(); 
-    updateBalancePreview();
-    showToast('تم مسح جميع العمليات', 'success');
+    try {
+        setSyncStatus('syncing', '🔄 جاري المسح...');
+        await bankEntriesRef.remove();
+        showToast('تم مسح جميع العمليات', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
 }
 
 function renderBank() {
-    bankFilteredEntries = []; // Reset filter
+    bankFilteredEntries = [];
     document.getElementById('bankSearch').value = '';
     document.getElementById('bankFilter').value = 'all';
     renderBankTable();
 }
 
+// ========== PORTAL (Rep Dashboard within Admin) ==========
+
+async function portalLogin() {
+    const id = document.getElementById('portalLoginId').value.trim();
+    const password = document.getElementById('portalLoginPassword').value;
+    if (!id) { showToast('أدخل الرقم التعريفي', 'error'); return; }
+    if (!password) { showToast('أدخل كلمة المرور', 'error'); return; }
+
+    const rep = reps.find(r => r.id === id);
+    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
+
+    const storedPassword = repPasswords[id];
+    if (!storedPassword) { showToast('لم يتم تعيين كلمة مرور لهذا المندوب', 'error'); return; }
+    if (storedPassword !== password) { showToast('كلمة المرور غير صحيحة', 'error'); return; }
+
+    currentPortalRep = rep;
+    document.getElementById('portalLogin').classList.add('hidden');
+    document.getElementById('portalDashboard').classList.remove('hidden');
+    document.getElementById('portalName').textContent = rep.name;
+    document.getElementById('portalId').textContent = rep.id;
+    document.getElementById('portalAvatar').textContent = rep.name.charAt(0);
+    document.getElementById('portalIqama').textContent = rep.iqama;
+    document.getElementById('portalExpiry').textContent = rep.expiry;
+    document.getElementById('portalOrderDate').value = new Date().toISOString().split('T')[0];
+    portalRefresh();
+    showToast('مرحباً ' + rep.name + '! تم تسجيل الدخول بنجاح', 'success');
+}
+
+function portalLogout() {
+    currentPortalRep = null;
+    document.getElementById('portalLogin').classList.remove('hidden');
+    document.getElementById('portalDashboard').classList.add('hidden');
+    document.getElementById('portalLoginId').value = '';
+    document.getElementById('portalLoginPassword').value = '';
+    showToast('تم تسجيل الخروج', 'info');
+}
+
+function portalRefresh() {
+    if (!currentPortalRep) return;
+    const repId = currentPortalRep.id;
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+    const todayOrders = (orders[today] && orders[today][repId]) || 0;
+    document.getElementById('portalOrdersToday').textContent = todayOrders;
+
+    let monthTotal = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        monthTotal += (orders[dateStr] && orders[dateStr][repId]) || 0;
+    }
+    document.getElementById('portalOrdersMonth').textContent = monthTotal;
+    document.getElementById('portalMyOrders').textContent = monthTotal;
+
+    const debt = getRepDebt(repId);
+    const debtEl = document.getElementById('portalDebt');
+    debtEl.textContent = Math.abs(debt).toFixed(0);
+    debtEl.className = 'text-3xl font-bold ' + (debt > 0 ? 'text-red-400' : debt < 0 ? 'text-emerald-400' : 'text-white');
+
+    const allStats = reps.map(r => {
+        let total = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            total += (orders[dateStr] && orders[dateStr][r.id]) || 0;
+        }
+        return {id: r.id, total};
+    }).sort((a, b) => b.total - a.total);
+
+    const rank = allStats.findIndex(s => s.id === repId) + 1;
+    document.getElementById('portalRank').textContent = rank > 0 ? '#' + rank : '-';
+
+    const goal = 500;
+    const percent = Math.min((monthTotal / goal) * 100, 100);
+    const circle = document.getElementById('portalProgressCircle');
+    const circumference = 2 * Math.PI * 54;
+    const offset = circumference - (percent / 100) * circumference;
+    circle.style.strokeDashoffset = offset;
+    document.getElementById('portalProgressPercent').textContent = Math.round(percent) + '%';
+
+    const expiryDate = new Date(currentPortalRep.expiry);
+    const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+    const daysEl = document.getElementById('portalDaysLeft');
+    daysEl.textContent = daysLeft < 0 ? 'منتهية!' : daysLeft + ' يوم';
+    daysEl.className = 'font-bold ' + (daysLeft < 30 ? 'text-red-600' : daysLeft < 60 ? 'text-orange-600' : 'text-emerald-600');
+
+    const alertDiv = document.getElementById('portalIqamaAlert');
+    if (daysLeft < 0) {
+        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-red-100 text-red-700';
+        alertDiv.textContent = '⚠️ الإقامة منتهية! تواصل مع الإدارة فوراً';
+        alertDiv.classList.remove('hidden');
+    } else if (daysLeft <= 30) {
+        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-orange-100 text-orange-700';
+        alertDiv.textContent = '⏰ الإقامة تنتهي قريباً! تجديد عاجل';
+        alertDiv.classList.remove('hidden');
+    } else {
+        alertDiv.classList.add('hidden');
+    }
+
+    const myCar = cars.find(c => c.repId === repId && c.status === 'active');
+    const carDiv = document.getElementById('portalCarInfo');
+    if (myCar) {
+        const returnDate = myCar.return ? new Date(myCar.return) : null;
+        const carDaysLeft = returnDate ? Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24)) : null;
+        carDiv.innerHTML = `
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">السيارة</span><span class="font-bold text-slate-800">${myCar.type}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">رقم اللوحة</span><span class="font-bold font-mono text-slate-800">${myCar.plate}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">مكتب التأجير</span><span class="font-bold text-slate-800">${myCar.office}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الإيجار الشهري</span><span class="font-bold text-slate-800">${parseFloat(myCar.rent).toFixed(2)} ريال</span></div>
+            ${returnDate ? `<div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl"><span class="text-slate-600">تاريخ التسليم</span><span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : 'text-slate-800'}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span></div>` : ''}`;
+    } else {
+        carDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد سيارة نشطة مسجلة</div>';
+    }
+
+    const recentDiv = document.getElementById('portalRecentOrders');
+    const myOrders = [];
+    for (let d = daysInMonth; d >= 1; d--) {
+        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const val = (orders[dateStr] && orders[dateStr][repId]) || 0;
+        if (val > 0) myOrders.push({date: dateStr, count: val});
+    }
+    if (myOrders.length === 0) {
+        recentDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة هذا الشهر</div>';
+    } else {
+        recentDiv.innerHTML = myOrders.slice(0, 10).map(o => `
+            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                <span class="text-slate-600 text-sm">${o.date}</span>
+                <span class="font-bold text-blue-600">${o.count} طلب</span>
+            </div>`).join('');
+    }
+
+    const achDiv = document.getElementById('portalAchievements');
+    const achievements = [];
+    if (monthTotal >= 500) achievements.push({icon: '🏆', text: '500+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (monthTotal >= 300) achievements.push({icon: '🥈', text: '300+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (monthTotal >= 100) achievements.push({icon: '🥉', text: '100+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (todayOrders >= 20) achievements.push({icon: '🔥', text: '20+ اليوم', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (rank === 1) achievements.push({icon: '👑', text: 'المركز الأول', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (rank <= 3 && rank > 0) achievements.push({icon: '🌟', text: 'Top 3', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (debt === 0) achievements.push({icon: '✅', text: 'خالي من الديون', color: 'bg-emerald-500'});
+
+    if (achievements.length === 0) {
+        achDiv.innerHTML = '<span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>';
+    } else {
+        achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
+    }
+}
+
+async function portalSaveOrder() {
+    if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
+    const date = document.getElementById('portalOrderDate').value;
+    const count = parseInt(document.getElementById('portalOrderCount').value);
+    if (!date) { showToast('اختر التاريخ', 'error'); return; }
+    if (isNaN(count) || count < 0) { showToast('أدخل عدد صحيح', 'error'); return; }
+    if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
+
+    const newOrders = {...orders};
+    if (!newOrders[date]) newOrders[date] = {};
+    newOrders[date][currentPortalRep.id] = count;
+
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await ordersRef.child(date).child(currentPortalRep.id).set(count);
+        document.getElementById('portalOrderCount').value = '';
+        portalRefresh();
+        showToast('تم حفظ ' + count + ' طلب بنجاح!', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
+    }
+}
+
+// ========== EXPORT FUNCTIONS ==========
+
+function exportToExcel(data, sheetName, fileName, headers) {
+    if (data.length === 0) { showToast('لا توجد بيانات للتصدير', 'warning'); return; }
+    const wb = XLSX.utils.book_new();
+    const wsData = [headers, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const colWidths = headers.map((h, i) => {
+        const maxLength = Math.max(...data.map(row => String(row[i] || '').length), String(h).length);
+        return { wch: Math.min(maxLength + 4, 50) };
+    });
+    ws['!cols'] = colWidths;
+    ws['!rtl'] = true;
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, fileName + '.xlsx');
+    showToast('تم التصدير بنجاح', 'success');
+}
+
+function exportIqamaAlerts() {
+    const now = new Date();
+    const oneDay = 1000 * 60 * 60 * 24;
+    const oneMonth = oneDay * 30;
+    const urgentData = [], warningData = [];
+    reps.forEach(rep => {
+        const expiryDate = new Date(rep.expiry);
+        const diff = expiryDate - now;
+        const daysLeft = Math.ceil(diff / oneDay);
+        if (diff > 0 && diff <= oneMonth) urgentData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'عاجل - تنتهي خلال شهر']);
+        else if (diff > oneMonth && diff <= oneDay * 60) warningData.push([rep.name, rep.iqama, rep.expiry, daysLeft + ' يوم', 'تنبيه - تنتهي خلال شهرين']);
+    });
+    if (urgentData.length === 0 && warningData.length === 0) { showToast('لا توجد إقامات تحتاج تجديد حالياً', 'warning'); return; }
+    const wb = XLSX.utils.book_new();
+    const headers = ['المندوب', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'];
+    if (urgentData.length > 0) {
+        const ws1 = XLSX.utils.aoa_to_sheet([headers, ...urgentData]);
+        ws1['!rtl'] = true; ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'إقامات عاجلة');
+    }
+    if (warningData.length > 0) {
+        const ws2 = XLSX.utils.aoa_to_sheet([headers, ...warningData]);
+        ws2['!rtl'] = true; ws2['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:25}];
+        XLSX.utils.book_append_sheet(wb, ws2, 'إقامات تحتاج متابعة');
+    }
+    XLSX.writeFile(wb, 'تنبيهات_الإقامات_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير تنبيهات الإقامات', 'success');
+}
+
+function exportAllReps() {
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const data = reps.map(rep => {
+        const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+        let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
+        return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status, new Date(rep.createdAt).toLocaleDateString('ar-SA')];
+    });
+    exportToExcel(data, 'المناديب', 'قائمة_المناديب', ['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة', 'تاريخ التسجيل']);
+}
+
+function exportLoansHistory() {
+    if (loans.length === 0) { showToast('لا توجد عمليات مسجلة', 'warning'); return; }
+    const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const data = sortedLoans.map(loan => [loan.date, loan.repName, loan.type === 'loan' ? 'سلفة' : 'سداد', loan.type === 'loan' ? parseFloat(loan.amount).toFixed(2) : '-' + parseFloat(loan.amount).toFixed(2), parseFloat(loan.balanceAfter).toFixed(2), loan.notes || '-']);
+    exportToExcel(data, 'سجل العمليات', 'سجل_السلف', ['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات']);
+}
+
+function exportDebtSummary() {
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const debts = []; let totalDebt = 0;
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) { debts.push({name: rep.name, id: rep.id, debt: debt, status: debt > 0 ? 'مديون' : 'له رصيد'}); if (debt > 0) totalDebt += debt; }
+    });
+    debts.sort((a, b) => b.debt - a.debt);
+    const data = debts.map(d => [d.name, d.id, d.debt.toFixed(2), d.status]);
+    data.push(['', '', '', '']); data.push(['الإجمالي', '', totalDebt.toFixed(2), 'ريال سعودي']);
+    exportToExcel(data, 'ملخص المديونيات', 'ملخص_المديونيات', ['المندوب', 'المعرف', 'المبلغ', 'الحالة']);
+}
+
+function exportLoansFull() {
+    const wb = XLSX.utils.book_new();
+    if (loans.length > 0) {
+        const sortedLoans = [...loans].sort((a, b) => new Date(b.date) - new Date(a.date));
+        const loansData = sortedLoans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
+        const ws1 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
+        ws1['!rtl'] = true; ws1['!cols'] = [{wch:12}, {wch:20}, {wch:10}, {wch:12}, {wch:12}, {wch:30}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'سجل العمليات');
+    }
+    const debts = []; let totalDebt = 0;
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) { debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']); if (debt > 0) totalDebt += debt; }
+    });
+    debts.sort((a, b) => parseFloat(b[2]) - parseFloat(a[2]));
+    debts.push(['', '', '', '']); debts.push(['الإجمالي', '', totalDebt.toFixed(2), '']);
+    const ws2 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
+    ws2['!rtl'] = true; ws2['!cols'] = [{wch:20}, {wch:15}, {wch:12}, {wch:15}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'ملخص المديونيات');
+    XLSX.writeFile(wb, 'تقرير_السلف_الشامل_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير التقرير الشامل', 'success');
+}
+
+function exportDailyOrders() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+    const headers = ['المندوب', ...Array.from({length: daysInMonth}, (_, i) => (i + 1).toString()), 'الإجمالي'];
+    const data = [];
+    reps.forEach(rep => {
+        let total = 0;
+        const row = [rep.name];
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
+            row.push(val); total += parseInt(val);
+        }
+        row.push(total); data.push(row);
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!rtl'] = true;
+    const colWidths = [{wch: 20}];
+    for (let i = 0; i < daysInMonth; i++) colWidths.push({wch: 6});
+    colWidths.push({wch: 10});
+    ws['!cols'] = colWidths;
+    XLSX.utils.book_append_sheet(wb, ws, 'الطلبات اليومية');
+    XLSX.writeFile(wb, `الطلبات_اليومية_${monthNames[currentMonth]}_${currentYear}.xlsx`);
+    showToast('تم تصدير الطلبات اليومية', 'success');
+}
+
+function exportStatsReport() {
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const stats = reps.map(rep => {
+        let total = 0, activeDays = 0;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+            const val = (orders[dateStr] && orders[dateStr][rep.id]) || 0;
+            total += parseInt(val); if (val > 0) activeDays++;
+        }
+        return {name: rep.name, id: rep.id, total, activeDays, avg: activeDays > 0 ? (total / activeDays).toFixed(1) : 0};
+    });
+    const sorted = [...stats].sort((a, b) => b.total - a.total);
+    const grandTotal = stats.reduce((s, r) => s + r.total, 0);
+    const wb = XLSX.utils.book_new();
+    const summaryData = [['البيان', 'القيمة'], ['الشهر', monthNames[currentMonth] + ' ' + currentYear], ['إجمالي الطلبات', grandTotal], ['متوسط شهري', stats.length > 0 ? (grandTotal / stats.length).toFixed(1) : 0], ['متوسط يومي', grandTotal > 0 ? (grandTotal / 30).toFixed(1) : 0], ['المناديب النشطة', stats.filter(r => r.total > 0).length], ['إجمالي المناديب', reps.length]];
+    const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+    ws1['!rtl'] = true; ws1['!cols'] = [{wch: 25}, {wch: 15}];
+    XLSX.utils.book_append_sheet(wb, ws1, 'إحصائيات عامة');
+    const detailData = sorted.map((r, i) => [i + 1, r.name, r.id, r.total, r.activeDays, r.avg]);
+    const ws2 = XLSX.utils.aoa_to_sheet([['#', 'المندوب', 'المعرف', 'الإجمالي', 'أيام نشطة', 'متوسط يومي'], ...detailData]);
+    ws2['!rtl'] = true; ws2['!cols'] = [{wch:5}, {wch:20}, {wch:15}, {wch:12}, {wch:12}, {wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'تفصيل المناديب');
+    XLSX.writeFile(wb, `إحصائيات_${monthNames[currentMonth]}_${currentYear}.xlsx`);
+    showToast('تم تصدير الإحصائيات', 'success');
+}
+
+function exportFullReport() {
+    const wb = XLSX.utils.book_new();
+    const now = new Date().toISOString().split('T')[0];
+    if (reps.length > 0) {
+        const repsData = reps.map(rep => {
+            const daysLeft = Math.ceil((new Date(rep.expiry) - new Date()) / (1000 * 60 * 60 * 24));
+            let status = 'سارية'; if (daysLeft < 0) status = 'منتهية'; else if (daysLeft < 30) status = 'تنتهي قريباً';
+            return [rep.name, rep.id, rep.iqama, rep.expiry, daysLeft < 0 ? 'منتهية' : daysLeft + ' يوم', status];
+        });
+        const ws1 = XLSX.utils.aoa_to_sheet([['الاسم', 'المعرف', 'رقم الإقامة', 'تاريخ الانتهاء', 'الأيام المتبقية', 'الحالة'], ...repsData]);
+        ws1['!rtl'] = true; ws1['!cols'] = [{wch:20}, {wch:15}, {wch:15}, {wch:15}, {wch:15}, {wch:15}];
+        XLSX.utils.book_append_sheet(wb, ws1, 'المناديب');
+    }
+    if (loans.length > 0) {
+        const loansData = loans.map(l => [l.date, l.repName, l.type === 'loan' ? 'سلفة' : 'سداد', parseFloat(l.amount).toFixed(2), parseFloat(l.balanceAfter).toFixed(2), l.notes || '-']);
+        const ws2 = XLSX.utils.aoa_to_sheet([['التاريخ', 'المندوب', 'النوع', 'المبلغ', 'الرصيد بعد', 'ملاحظات'], ...loansData]);
+        ws2['!rtl'] = true;
+        XLSX.utils.book_append_sheet(wb, ws2, 'السلف');
+    }
+    const debts = [];
+    reps.forEach(rep => {
+        const debt = getRepDebt(rep.id);
+        if (debt !== 0) debts.push([rep.name, rep.id, debt.toFixed(2), debt > 0 ? 'مديون' : 'له رصيد']);
+    });
+    if (debts.length > 0) {
+        const ws3 = XLSX.utils.aoa_to_sheet([['المندوب', 'المعرف', 'المبلغ', 'الحالة'], ...debts]);
+        ws3['!rtl'] = true;
+        XLSX.utils.book_append_sheet(wb, ws3, 'المديونيات');
+    }
+    XLSX.writeFile(wb, 'التقرير_الشامل_' + now + '.xlsx');
+    showToast('تم تصدير التقرير الشامل', 'success');
+}
+
+function exportCarsList() {
+    if (cars.length === 0) { showToast('لا توجد سيارات مسجلة', 'warning'); return; }
+    const data = cars.map(car => [car.repName, car.office, car.type, car.plate, parseFloat(car.rent).toFixed(2), car.pickup, car.return, car.status === 'active' ? 'نشطة' : 'مُسلّمة', car.notes || '-']);
+    exportToExcel(data, 'السيارات', 'قائمة_السيارات', ['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'ملاحظات']);
+}
+
+function exportCarsFull() {
+    const wb = XLSX.utils.book_new();
+    if (cars.length > 0) {
+        const carsData = cars.map(car => [car.repName, car.office, car.type, car.plate, parseFloat(car.rent).toFixed(2), car.pickup, car.return, car.status === 'active' ? 'نشطة' : 'مُسلّمة', car.actualReturn || '-', car.notes || '-']);
+        const ws = XLSX.utils.aoa_to_sheet([['المندوب', 'مكتب التأجير', 'نوع السيارة', 'رقم اللوحة', 'قيمة الإيجار', 'تاريخ الاستلام', 'تاريخ التسليم', 'الحالة', 'تاريخ التسليم الفعلي', 'ملاحظات'], ...carsData]);
+        ws['!rtl'] = true;
+        ws['!cols'] = [{wch:20}, {wch:20}, {wch:20}, {wch:15}, {wch:12}, {wch:15}, {wch:15}, {wch:12}, {wch:15}, {wch:30}];
+        XLSX.utils.book_append_sheet(wb, ws, 'السيارات');
+    }
+    XLSX.writeFile(wb, 'تقرير_السيارات_' + new Date().toISOString().split('T')[0] + '.xlsx');
+    showToast('تم تصدير التقرير', 'success');
+}
+
 function exportBankHistory() {
     if (bankEntries.length === 0) { showToast('لا توجد عمليات مسجلة', 'warning'); return; }
     const sorted = [...bankEntries].sort((a, b) => new Date(a.date) - new Date(b.date));
-    const data = sorted.map((e, i) => [
-        i + 1, e.date, e.desc,
-        e.debit > 0 ? e.debit.toFixed(2) : '-',
-        e.credit > 0 ? e.credit.toFixed(2) : '-',
-        e.balance.toFixed(2),
-        e.notes || '-'
-    ]);
-    exportToExcel(data, 'سجل البنك', 'سجل_البنك',
-        ['#', 'التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد', 'ملاحظات']);
+    const data = sorted.map((e, i) => [i + 1, e.date, e.desc, e.debit > 0 ? e.debit.toFixed(2) : '-', e.credit > 0 ? e.credit.toFixed(2) : '-', e.balance.toFixed(2), e.notes || '-']);
+    exportToExcel(data, 'سجل البنك', 'سجل_البنك', ['#', 'التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد', 'ملاحظات']);
 }
 
 function exportBankFull() {
@@ -2269,8 +2426,7 @@ function exportBankFull() {
             totalDebit += e.debit; totalCredit += e.credit;
             return [i + 1, e.date, e.desc, e.debit > 0 ? e.debit.toFixed(2) : '-', e.credit > 0 ? e.credit.toFixed(2) : '-', e.balance.toFixed(2), e.notes || '-'];
         });
-        data.push(['', '', '', '', '', '', '']);
-        data.push(['', '', 'الإجمالي', totalDebit.toFixed(2), totalCredit.toFixed(2), sorted[sorted.length-1].balance.toFixed(2), '']);
+        data.push(['', '', '', '', '', '', '']); data.push(['', '', 'الإجمالي', totalDebit.toFixed(2), totalCredit.toFixed(2), sorted[sorted.length-1].balance.toFixed(2), '']);
         const ws = XLSX.utils.aoa_to_sheet([['#', 'التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد', 'ملاحظات'], ...data]);
         ws['!rtl'] = true;
         ws['!cols'] = [{wch:5}, {wch:12}, {wch:30}, {wch:12}, {wch:12}, {wch:12}, {wch:25}];
@@ -2281,11 +2437,6 @@ function exportBankFull() {
 }
 
 function printPage(page) {
-    // Hide sidebar for clean print
-    const sidebar = document.querySelector('.sidebar');
-    const main = document.querySelector('main');
-
-    // Add print styles
     const printStyles = document.createElement('style');
     printStyles.id = 'printStyles';
     printStyles.innerHTML = `
@@ -2304,15 +2455,10 @@ function printPage(page) {
         }
     `;
     document.head.appendChild(printStyles);
-
-    // Ensure the target page is active for print
     const currentActive = document.querySelector('.page.active');
     if (currentActive) currentActive.classList.remove('active');
     document.getElementById(page + 'Page').classList.add('active');
-
     window.print();
-
-    // Cleanup
     setTimeout(() => {
         const ps = document.getElementById('printStyles');
         if (ps) ps.remove();
@@ -2323,475 +2469,11 @@ function printPage(page) {
     }, 100);
 }
 
-// ========== دوال بوابة المندوب ==========
-let currentPortalRep = null;
-
-function portalLogin() {
-    const id = document.getElementById('portalLoginId').value.trim();
-    if (!id) { showToast('أدخل الرقم التعريفي', 'error'); return; }
-
-    const rep = reps.find(r => r.id === id);
-    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
-
-    currentPortalRep = rep;
-    document.getElementById('portalLogin').classList.add('hidden');
-    document.getElementById('portalDashboard').classList.remove('hidden');
-
-    // Set basic info
-    document.getElementById('portalName').textContent = rep.name;
-    document.getElementById('portalId').textContent = rep.id;
-    document.getElementById('portalAvatar').textContent = rep.name.charAt(0);
-    document.getElementById('portalIqama').textContent = rep.iqama;
-    document.getElementById('portalExpiry').textContent = rep.expiry;
-
-    // Set default date to today
-    document.getElementById('portalOrderDate').value = new Date().toISOString().split('T')[0];
-
-    portalRefresh();
-    showToast('تم تسجيل الدخول بنجاح', 'success');
-}
-
-function portalLogout() {
-    currentPortalRep = null;
-    document.getElementById('portalLogin').classList.remove('hidden');
-    document.getElementById('portalDashboard').classList.add('hidden');
-    document.getElementById('portalLoginId').value = '';
-    showToast('تم تسجيل الخروج', 'success');
-}
-
-function portalRefresh() {
-    if (!currentPortalRep) return;
-
-    const repId = currentPortalRep.id;
-    const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-    // Today's orders
-    const todayOrders = (orders[today] && orders[today][repId]) || 0;
-    document.getElementById('portalOrdersToday').textContent = todayOrders;
-
-    // Monthly orders
-    let monthTotal = 0;
-    for (let d = 1; d <= daysInMonth; d++) {
-        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        monthTotal += (orders[dateStr] && orders[dateStr][repId]) || 0;
-    }
-    document.getElementById('portalOrdersMonth').textContent = monthTotal;
-    document.getElementById('portalMyOrders').textContent = monthTotal;
-
-    // Debt
-    const debt = getRepDebt(repId);
-    const debtEl = document.getElementById('portalDebt');
-    debtEl.textContent = Math.abs(debt).toFixed(2);
-    debtEl.className = 'text-3xl font-bold ' + (debt > 0 ? 'text-red-400' : debt < 0 ? 'text-emerald-400' : 'text-white');
-
-    // Rank
-    const allStats = reps.map(r => {
-        let total = 0;
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-            total += (orders[dateStr] && orders[dateStr][r.id]) || 0;
-        }
-        return {id: r.id, total};
-    }).sort((a, b) => b.total - a.total);
-
-    const rank = allStats.findIndex(s => s.id === repId) + 1;
-    document.getElementById('portalRank').textContent = rank > 0 ? '#' + rank : '-';
-
-    // Progress circle (goal: 500)
-    const goal = 500;
-    const percent = Math.min((monthTotal / goal) * 100, 100);
-    const circle = document.getElementById('portalProgressCircle');
-    const circumference = 2 * Math.PI * 54; // r=54
-    const offset = circumference - (percent / 100) * circumference;
-    circle.style.strokeDashoffset = offset;
-    document.getElementById('portalProgressPercent').textContent = Math.round(percent) + '%';
-
-    // Iqama days left
-    const expiryDate = new Date(currentPortalRep.expiry);
-    const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
-    const daysEl = document.getElementById('portalDaysLeft');
-    daysEl.textContent = daysLeft < 0 ? 'منتهية!' : daysLeft + ' يوم';
-    daysEl.className = 'font-bold ' + (daysLeft < 30 ? 'text-red-500' : daysLeft < 60 ? 'text-orange-500' : 'text-emerald-500');
-
-    // Iqama alert
-    const alertDiv = document.getElementById('portalIqamaAlert');
-    if (daysLeft < 0) {
-        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-red-100 text-red-700';
-        alertDiv.textContent = '⚠️ الإقامة منتهية! تواصل مع الإدارة فوراً';
-        alertDiv.classList.remove('hidden');
-    } else if (daysLeft <= 30) {
-        alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-orange-100 text-orange-700';
-        alertDiv.textContent = '⏰ الإقامة تنتهي قريباً! تجديد عاجل';
-        alertDiv.classList.remove('hidden');
-    } else {
-        alertDiv.classList.add('hidden');
-    }
-
-    // Car info
-    const myCar = cars.find(c => c.repId === repId && c.status === 'active');
-    const carDiv = document.getElementById('portalCarInfo');
-    if (myCar) {
-        const returnDate = myCar.return ? new Date(myCar.return) : null;
-        const carDaysLeft = returnDate ? Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24)) : null;
-        carDiv.innerHTML = `
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">السيارة</span>
-                <span class="font-bold">${myCar.type}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">رقم اللوحة</span>
-                <span class="font-bold font-mono">${myCar.plate}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">مكتب التأجير</span>
-                <span class="font-bold">${myCar.office}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">الإيجار الشهري</span>
-                <span class="font-bold">${parseFloat(myCar.rent).toFixed(2)} ريال</span>
-            </div>
-            ${returnDate ? `
-            <div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl">
-                <span class="text-slate-600">تاريخ التسليم</span>
-                <span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : ''}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span>
-            </div>` : ''}
-        `;
-    } else {
-        carDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد سيارة نشطة مسجلة</div>';
-    }
-
-    // Recent orders (last 10)
-    const recentDiv = document.getElementById('portalRecentOrders');
-    const myOrders = [];
-    for (let d = daysInMonth; d >= 1; d--) {
-        const dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-        const val = (orders[dateStr] && orders[dateStr][repId]) || 0;
-        if (val > 0) myOrders.push({date: dateStr, count: val});
-    }
-
-    if (myOrders.length === 0) {
-        recentDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة هذا الشهر</div>';
-    } else {
-        recentDiv.innerHTML = myOrders.slice(0, 10).map(o => `
-            <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600 text-sm">${o.date}</span>
-                <span class="font-bold text-blue-600">${o.count} طلب</span>
-            </div>
-        `).join('');
-    }
-
-    // Achievements
-    const achDiv = document.getElementById('portalAchievements');
-    const achievements = [];
-    if (monthTotal >= 500) achievements.push({icon: '🏆', text: '500+ طلب', color: 'achievement-badge'});
-    if (monthTotal >= 300) achievements.push({icon: '🥈', text: '300+ طلب', color: 'achievement-badge'});
-    if (monthTotal >= 100) achievements.push({icon: '🥉', text: '100+ طلب', color: 'achievement-badge'});
-    if (todayOrders >= 20) achievements.push({icon: '🔥', text: '20+ اليوم', color: 'rank-badge'});
-    if (rank === 1) achievements.push({icon: '👑', text: 'المركز الأول', color: 'rank-badge'});
-    if (rank <= 3 && rank > 0) achievements.push({icon: '🌟', text: 'Top 3', color: 'rank-badge'});
-    if (debt === 0) achievements.push({icon: '✅', text: 'خالي من الديون', color: 'bg-emerald-500'});
-
-    if (achievements.length === 0) {
-        achDiv.innerHTML = '<span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>';
-    } else {
-        achDiv.innerHTML = achievements.map(a => `
-            <span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">
-                ${a.icon} ${a.text}
-            </span>
-        `).join('');
-    }
-}
-
-function portalSaveOrder() {
-    if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
-
-    const date = document.getElementById('portalOrderDate').value;
-    const count = parseInt(document.getElementById('portalOrderCount').value) || 0;
-
-    if (!date || count < 0) { showToast('أدخل التاريخ والعدد بشكل صحيح', 'error'); return; }
-    if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
-
-    if (!orders[date]) orders[date] = {};
-    orders[date][currentPortalRep.id] = count;
-    saveOrdersData();
-
-    document.getElementById('portalOrderCount').value = '';
-    portalRefresh();
-    showToast('تم حفظ الطلبات بنجاح', 'success');
-}
-
-// Override showPage to handle portal
-const _originalShowPage = showPage;
-showPage = function(page) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(page + 'Page').classList.add('active');
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('nav_' + page).classList.add('active');
-    document.querySelectorAll('.export-menu').forEach(m => m.classList.remove('active'));
-    if (page === 'daily') renderDaily();
-    if (page === 'stats') renderStats();
-    if (page === 'home') renderHomeStats();
-    if (page === 'loans') initLoansPage();
-    if (page === 'cars') initCarsPage();
-    if (page === 'bank') initBankPage();
-    if (page === 'portal') {
-        if (currentPortalRep) portalRefresh();
-    }
-};
-
-// ===== FIREBASE CONFIG & INIT =====
-const firebaseConfig = {
-  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
-  authDomain: "rep-management-system.firebaseapp.com",
-  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "rep-management-system",
-  storageBucket: "rep-management-system.firebasestorage.app",
-  messagingSenderId: "416275066968",
-  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ===== SYNC TO FIREBASE =====
-function syncRepsToFirebase() {
-  return db.ref('reps').set(reps);
-}
-function syncOrdersToFirebase() {
-  return db.ref('orders').set(orders);
-}
-function syncLoansToFirebase() {
-  return db.ref('loans').set(loans);
-}
-function syncCarsToFirebase() {
-  return db.ref('cars').set(cars);
-}
-function syncBankToFirebase() {
-  return db.ref('bankEntries').set(bankEntries);
-}
-function syncPasswordsToFirebase() {
-  return db.ref('repPasswords').set(repPasswords);
-}
-
-// ===== LOAD FROM FIREBASE =====
-function loadRepsFromFirebase() {
-  return db.ref('reps').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { 
-      // Ensure it's an array (Firebase might return object)
-      if (Array.isArray(data)) {
-        reps = data;
-      } else if (typeof data === 'object') {
-        reps = Object.values(data);
-      } else {
-        reps = [];
-      }
-      localStorage.setItem('reps', JSON.stringify(reps)); 
-    } else {
-      // No data in Firebase, keep local or init empty
-      reps = JSON.parse(localStorage.getItem('reps') || '[]');
-    }
-  }).catch(err => {
-    console.error('loadRepsFromFirebase error:', err);
-    reps = JSON.parse(localStorage.getItem('reps') || '[]');
-  });
-}
-function loadOrdersFromFirebase() {
-  return db.ref('orders').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { orders = data; localStorage.setItem('orders', JSON.stringify(orders)); }
-  });
-}
-function loadLoansFromFirebase() {
-  return db.ref('loans').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { loans = data; localStorage.setItem('loans', JSON.stringify(loans)); }
-  });
-}
-function loadCarsFromFirebase() {
-  return db.ref('cars').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { cars = data; localStorage.setItem('cars', JSON.stringify(cars)); }
-  });
-}
-function loadBankFromFirebase() {
-  return db.ref('bankEntries').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { bankEntries = data; localStorage.setItem('bankEntries', JSON.stringify(bankEntries)); }
-  });
-}
-function loadPasswordsFromFirebase() {
-  return db.ref('repPasswords').once('value').then(snap => {
-    const data = snap.val();
-    if (data) { 
-      repPasswords = data; 
-      localStorage.setItem('repPasswords', JSON.stringify(repPasswords)); 
-      console.log('Passwords loaded from Firebase:', Object.keys(repPasswords));
-    } else {
-      console.log('No passwords in Firebase, using local:', Object.keys(repPasswords));
-    }
-  }).catch(err => {
-    console.error('loadPasswordsFromFirebase error:', err);
-    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-  });
-}
-
-// ===== REALTIME LISTENERS =====
-function setupRealtimeListeners() {
-  db.ref('reps').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      reps = data;
-      localStorage.setItem('reps', JSON.stringify(reps));
-      renderReps(); renderHomeStats();
-      if (document.getElementById('loansPage').classList.contains('active')) initLoansPage();
-      if (document.getElementById('carsPage').classList.contains('active')) initCarsPage();
-      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('orders').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      orders = data;
-      localStorage.setItem('orders', JSON.stringify(orders));
-      if (document.getElementById('dailyPage').classList.contains('active')) renderDaily();
-      if (document.getElementById('statsPage').classList.contains('active')) renderStats();
-      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('loans').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      loans = data;
-      localStorage.setItem('loans', JSON.stringify(loans));
-      if (document.getElementById('loansPage').classList.contains('active')) { renderLoans(); renderDebtSummary(); }
-      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('cars').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      cars = data;
-      localStorage.setItem('cars', JSON.stringify(cars));
-      if (document.getElementById('carsPage').classList.contains('active')) renderCars();
-      if (document.getElementById('portalPage').classList.contains('active') && currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('bankEntries').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      bankEntries = data;
-      localStorage.setItem('bankEntries', JSON.stringify(bankEntries));
-      if (document.getElementById('bankPage').classList.contains('active')) renderBank();
-    }
-  });
-  db.ref('repPasswords').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      repPasswords = data;
-      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-    }
-  });
-}
-
-// ===== OVERRIDE SAVE FUNCTIONS =====
-saveReps = function() {
-  localStorage.setItem('reps', JSON.stringify(reps));
-  syncRepsToFirebase().catch(err => console.error('Firebase reps sync failed:', err));
-};
-
-saveOrdersData = function() {
-  localStorage.setItem('orders', JSON.stringify(orders));
-  syncOrdersToFirebase().catch(err => console.error('Firebase orders sync failed:', err));
-};
-
-saveLoans = function() {
-  localStorage.setItem('loans', JSON.stringify(loans));
-  syncLoansToFirebase().catch(err => console.error('Firebase loans sync failed:', err));
-};
-
-saveCars = function() {
-  localStorage.setItem('cars', JSON.stringify(cars));
-  syncCarsToFirebase().catch(err => console.error('Firebase cars sync failed:', err));
-};
-
-saveBank = function() {
-  localStorage.setItem('bankEntries', JSON.stringify(bankEntries));
-  syncBankToFirebase().catch(err => console.error('Firebase bank sync failed:', err));
-};
-
-// ===== INIT =====
-function initFirebase() {
-  // First ensure reps is initialized as array
-  reps = JSON.parse(localStorage.getItem('reps') || '[]');
-  orders = JSON.parse(localStorage.getItem('orders') || '{}');
-  loans = JSON.parse(localStorage.getItem('loans') || '[]');
-  cars = JSON.parse(localStorage.getItem('cars') || '[]');
-  bankEntries = JSON.parse(localStorage.getItem('bankEntries') || '[]');
-
-  Promise.all([
-    loadRepsFromFirebase(),
-    loadOrdersFromFirebase(),
-    loadLoansFromFirebase(),
-    loadCarsFromFirebase(),
-    loadBankFromFirebase(),
-    loadPasswordsFromFirebase()
-  ]).then(() => {
-    showToast('تم الاتصال بقاعدة البيانات السحابية', 'success');
-    setupRealtimeListeners();
-    renderReps();
-    renderHomeStats();
-  }).catch(err => {
-    console.error('Firebase init error:', err);
-    showToast('تعذر الاتصال بالسحابة، العمل على البيانات المحلية', 'warning');
-    renderReps();
-    renderHomeStats();
-  });
-}
-
-initFirebase();
-showPage('home');
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+    initFirebaseListeners();
+    showPage('home');
+});
 </script>
-
-
-<!-- نافذة تسليم السيارة -->
-<div id="returnModal" class="modal">
-    <div class="modal-content shadow-2xl">
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-2xl font-bold text-slate-800">تسليم السيارة</h3>
-            <button onclick="closeReturnModal()" class="text-slate-400 hover:text-slate-600 text-xl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-        </div>
-        <form id="returnForm" onsubmit="event.preventDefault(); saveReturn();" class="space-y-4">
-            <input type="hidden" id="returnCarId">
-            <div>
-                <label class="block font-bold text-slate-700 mb-2">المندوب</label>
-                <input type="text" id="returnRepName" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
-            </div>
-            <div>
-                <label class="block font-bold text-slate-700 mb-2">نوع السيارة</label>
-                <input type="text" id="returnCarType" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-slate-100" readonly>
-            </div>
-            <div>
-                <label class="block font-bold text-slate-700 mb-2">تاريخ التسليم الفعلي *</label>
-                <input type="date" id="returnDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" required>
-            </div>
-            <div>
-                <label class="block font-bold text-slate-700 mb-2">ملاحظات التسليم</label>
-                <input type="text" id="returnNotes" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition" placeholder="حالة السيارة، عداد الكيلومترات، إلخ...">
-            </div>
-            <div class="flex gap-3 pt-4">
-                <button type="submit" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> تأكيد التسليم
-                </button>
-                <button type="button" onclick="closeReturnModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
-            </div>
-        </form>
-    </div>
-</div>
-
 </body>
 </html>
