@@ -1,49 +1,39 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة المندوب</title>
+    <title>بوابة المندوب - Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="firebase-config.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
         * { font-family: 'Cairo', sans-serif; }
-
-        /* ===== LIGHT THEME - Same as Dashboard ===== */
-        body { 
-            background: #f1f5f9; 
-            min-height: 100vh;
-        }
-
+        body { background: #f1f5f9; min-height: 100vh; }
         .toast {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 12px;
-            color: white;
-            font-weight: 600;
-            z-index: 9999;
-            animation: slideDown 0.3s ease;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            padding: 12px 24px; border-radius: 12px; color: white; font-weight: 600;
+            z-index: 9999; animation: slideDown 0.3s ease;
         }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translate(-50%, -20px); }
-            to { opacity: 1; transform: translate(-50%, 0); }
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes slideDown { from { opacity: 0; transform: translate(-50%, -20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.5s ease; }
         .progress-ring { transform: rotate(-90deg); }
         .progress-ring-circle { transition: stroke-dashoffset 0.5s ease; }
+        .sync-status { position: fixed; bottom: 20px; left: 20px; padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; z-index: 9999; transition: all 0.3s; }
+        .sync-status.online { background: #10b981; color: white; }
+        .sync-status.offline { background: #f59e0b; color: white; }
+        .sync-status.syncing { background: #3b82f6; color: white; }
     </style>
 </head>
 <body>
+
+<!-- Sync Status Indicator -->
+<div id="syncStatus" class="sync-status online">🟢 متصل بـ Firebase</div>
 
 <!-- LOGIN PAGE -->
 <div id="portalLogin" class="min-h-screen flex items-center justify-center p-4">
@@ -226,21 +216,7 @@
 </div>
 
 <script>
-// ===== FIREBASE CONFIG & INIT =====
-const firebaseConfig = {
-  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
-  authDomain: "rep-management-system.firebaseapp.com",
-  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "rep-management-system",
-  storageBucket: "rep-management-system.firebasestorage.app",
-  messagingSenderId: "416275066968",
-  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ===== DATA VARIABLES =====
+// ========== FIREBASE DATA MANAGEMENT ==========
 let reps = [];
 let orders = {};
 let loans = [];
@@ -248,113 +224,12 @@ let cars = [];
 let repPasswords = {};
 let currentPortalRep = null;
 
-// ===== LOAD ALL DATA FROM FIREBASE =====
-function loadAllDataFromFirebase() {
-  return Promise.all([
-    db.ref('reps').once('value'),
-    db.ref('orders').once('value'),
-    db.ref('loans').once('value'),
-    db.ref('cars').once('value'),
-    db.ref('repPasswords').once('value')
-  ]).then(([repsSnap, ordersSnap, loansSnap, carsSnap, passwordsSnap]) => {
-    if (repsSnap.val()) {
-      const data = repsSnap.val();
-      reps = Array.isArray(data) ? data : Object.values(data);
-      localStorage.setItem('reps', JSON.stringify(reps));
-    }
-    if (ordersSnap.val()) {
-      orders = ordersSnap.val();
-      localStorage.setItem('orders', JSON.stringify(orders));
-    }
-    if (loansSnap.val()) {
-      const data = loansSnap.val();
-      loans = Array.isArray(data) ? data : Object.values(data);
-      localStorage.setItem('loans', JSON.stringify(loans));
-    }
-    if (carsSnap.val()) {
-      const data = carsSnap.val();
-      cars = Array.isArray(data) ? data : Object.values(data);
-      localStorage.setItem('cars', JSON.stringify(cars));
-    }
-    if (passwordsSnap.val()) {
-      repPasswords = passwordsSnap.val();
-      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-      console.log('Portal: Passwords loaded from Firebase:', Object.keys(repPasswords));
-    } else {
-      repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-      console.log('Portal: No passwords in Firebase, using local:', Object.keys(repPasswords));
-    }
-  }).catch(err => {
-    console.error('Portal load error:', err);
-    reps = JSON.parse(localStorage.getItem('reps') || '[]');
-    orders = JSON.parse(localStorage.getItem('orders') || '{}');
-    loans = JSON.parse(localStorage.getItem('loans') || '[]');
-    cars = JSON.parse(localStorage.getItem('cars') || '[]');
-    repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-  });
+function setSyncStatus(status, msg) {
+    const el = document.getElementById('syncStatus');
+    el.className = 'sync-status ' + status;
+    el.textContent = msg;
 }
 
-// ===== SAVE ORDERS TO FIREBASE =====
-function saveOrdersData() {
-  localStorage.setItem('orders', JSON.stringify(orders));
-  db.ref('orders').set(orders).catch(err => console.error('Sync failed:', err));
-}
-
-// ===== REALTIME LISTENERS =====
-function setupRealtimeListeners() {
-  db.ref('orders').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      orders = data;
-      localStorage.setItem('orders', JSON.stringify(orders));
-      if (currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('loans').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      loans = data;
-      localStorage.setItem('loans', JSON.stringify(loans));
-      if (currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('cars').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      cars = data;
-      localStorage.setItem('cars', JSON.stringify(cars));
-      if (currentPortalRep) portalRefresh();
-    }
-  });
-  db.ref('reps').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      reps = Array.isArray(data) ? data : Object.values(data);
-      localStorage.setItem('reps', JSON.stringify(reps));
-      if (currentPortalRep) {
-        const updated = reps.find(r => r.id === currentPortalRep.id);
-        if (updated) {
-          currentPortalRep = updated;
-          document.getElementById('portalName').textContent = updated.name;
-          document.getElementById('portalAvatar').textContent = updated.name.charAt(0);
-          document.getElementById('portalIqama').textContent = updated.iqama;
-          document.getElementById('portalExpiry').textContent = updated.expiry;
-        }
-        portalRefresh();
-      }
-    }
-  });
-  db.ref('repPasswords').on('value', snap => {
-    const data = snap.val();
-    if (data) {
-      repPasswords = data;
-      localStorage.setItem('repPasswords', JSON.stringify(repPasswords));
-      console.log('Portal: Passwords updated in realtime:', Object.keys(repPasswords));
-    }
-  });
-}
-
-// ===== TOAST =====
 function showToast(msg, type) {
     const colors = { success: '#10b981', error: '#ef4444', warning: '#f59e0b', info: '#3b82f6' };
     const div = document.createElement('div');
@@ -365,7 +240,50 @@ function showToast(msg, type) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// ===== LOGIN =====
+// Initialize Firebase listeners
+function initFirebaseListeners() {
+    setSyncStatus('syncing', '🔄 جاري التحميل...');
+
+    repsRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        reps = Object.keys(data).map(key => ({...data[key], _key: key}));
+        if (currentPortalRep) portalRefresh();
+    });
+
+    ordersRef.on('value', (snapshot) => {
+        orders = snapshot.val() || {};
+        if (currentPortalRep) portalRefresh();
+    });
+
+    loansRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        loans = Object.keys(data).map(key => ({...data[key], id: key}));
+        if (currentPortalRep) portalRefresh();
+    });
+
+    carsRef.on('value', (snapshot) => {
+        const data = snapshot.val() || {};
+        cars = Object.keys(data).map(key => ({...data[key], id: key}));
+        if (currentPortalRep) portalRefresh();
+    });
+
+    repPasswordsRef.on('value', (snapshot) => {
+        repPasswords = snapshot.val() || {};
+    });
+
+    setSyncStatus('online', '🟢 متصل بـ Firebase');
+}
+
+function getRepDebt(repId) {
+    let debt = 0;
+    loans.filter(l => l.repId === repId).forEach(loan => {
+        if (loan.type === 'loan') debt += parseFloat(loan.amount);
+        else debt -= parseFloat(loan.amount);
+    });
+    return debt;
+}
+
+// تسجيل الدخول
 function portalLogin() {
     const id = document.getElementById('portalLoginId').value.trim();
     const password = document.getElementById('portalLoginPassword').value;
@@ -388,7 +306,6 @@ function portalLogin() {
     currentPortalRep = rep;
     document.getElementById('portalLogin').classList.add('hidden');
     document.getElementById('portalDashboard').classList.remove('hidden');
-
     document.getElementById('portalName').textContent = rep.name;
     document.getElementById('portalId').textContent = rep.id;
     document.getElementById('portalAvatar').textContent = rep.name.charAt(0);
@@ -409,18 +326,8 @@ function portalLogout() {
     showToast('تم تسجيل الخروج', 'info');
 }
 
-function getRepDebt(repId) {
-    let debt = 0;
-    loans.filter(l => l.repId === repId).forEach(loan => {
-        if (loan.type === 'loan') debt += parseFloat(loan.amount);
-        else debt -= parseFloat(loan.amount);
-    });
-    return debt;
-}
-
 function portalRefresh() {
     if (!currentPortalRep) return;
-
     const repId = currentPortalRep.id;
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -489,28 +396,11 @@ function portalRefresh() {
         const returnDate = myCar.return ? new Date(myCar.return) : null;
         const carDaysLeft = returnDate ? Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24)) : null;
         carDiv.innerHTML = `
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">السيارة</span>
-                <span class="font-bold text-slate-800">${myCar.type}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">رقم اللوحة</span>
-                <span class="font-bold font-mono text-slate-800">${myCar.plate}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">مكتب التأجير</span>
-                <span class="font-bold text-slate-800">${myCar.office}</span>
-            </div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                <span class="text-slate-600">الإيجار الشهري</span>
-                <span class="font-bold text-slate-800">${parseFloat(myCar.rent).toFixed(2)} ريال</span>
-            </div>
-            ${returnDate ? `
-            <div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl">
-                <span class="text-slate-600">تاريخ التسليم</span>
-                <span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : 'text-slate-800'}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span>
-            </div>` : ''}
-        `;
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">السيارة</span><span class="font-bold text-slate-800">${myCar.type}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">رقم اللوحة</span><span class="font-bold font-mono text-slate-800">${myCar.plate}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">مكتب التأجير</span><span class="font-bold text-slate-800">${myCar.office}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الإيجار الشهري</span><span class="font-bold text-slate-800">${parseFloat(myCar.rent).toFixed(2)} ريال</span></div>
+            ${returnDate ? `<div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl"><span class="text-slate-600">تاريخ التسليم</span><span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : 'text-slate-800'}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span></div>` : ''}`;
     } else {
         carDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد سيارة نشطة مسجلة</div>';
     }
@@ -522,7 +412,6 @@ function portalRefresh() {
         const val = (orders[dateStr] && orders[dateStr][repId]) || 0;
         if (val > 0) myOrders.push({date: dateStr, count: val});
     }
-
     if (myOrders.length === 0) {
         recentDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة هذا الشهر</div>';
     } else {
@@ -530,8 +419,7 @@ function portalRefresh() {
             <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                 <span class="text-slate-600 text-sm">${o.date}</span>
                 <span class="font-bold text-blue-600">${o.count} طلب</span>
-            </div>
-        `).join('');
+            </div>`).join('');
     }
 
     const achDiv = document.getElementById('portalAchievements');
@@ -547,64 +435,52 @@ function portalRefresh() {
     if (achievements.length === 0) {
         achDiv.innerHTML = '<span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>';
     } else {
-        achDiv.innerHTML = achievements.map(a => `
-            <span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">
-                ${a.icon} ${a.text}
-            </span>
-        `).join('');
+        achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
     }
 }
 
-function portalSaveOrder() {
+async function portalSaveOrder() {
     if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
-
     const date = document.getElementById('portalOrderDate').value;
     const count = parseInt(document.getElementById('portalOrderCount').value);
-
     if (!date) { showToast('اختر التاريخ', 'error'); return; }
     if (isNaN(count) || count < 0) { showToast('أدخل عدد صحيح', 'error'); return; }
     if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
 
-    if (!orders[date]) orders[date] = {};
-    orders[date][currentPortalRep.id] = count;
-    saveOrdersData();
-
-    document.getElementById('portalOrderCount').value = '';
-    portalRefresh();
-    showToast('تم حفظ ' + count + ' طلب بنجاح!', 'success');
-}
-
-// ===== INIT =====
-function initPortal() {
-  reps = JSON.parse(localStorage.getItem('reps') || '[]');
-  orders = JSON.parse(localStorage.getItem('orders') || '{}');
-  loans = JSON.parse(localStorage.getItem('loans') || '[]');
-  cars = JSON.parse(localStorage.getItem('cars') || '[]');
-  repPasswords = JSON.parse(localStorage.getItem('repPasswords') || '{}');
-
-  loadAllDataFromFirebase().then(() => {
-    setupRealtimeListeners();
-    showToast('✅ متصل بقاعدة البيانات', 'success');
-
-    if (reps.length === 0) {
-      document.getElementById('portalLogin').innerHTML = `
-        <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-            <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-            <h3 class="text-2xl font-bold text-slate-800 mb-2">بوابة المندوب</h3>
-            <p class="text-slate-500 mb-6">لا توجد بيانات مناديب مسجلة في النظام</p>
-            <p class="text-slate-400 text-sm">يجب إضافة المناديب من لوحة الإدارة أولاً</p>
-        </div>
-      `;
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        await ordersRef.child(date).child(currentPortalRep.id).set(count);
+        document.getElementById('portalOrderCount').value = '';
+        portalRefresh();
+        showToast('تم حفظ ' + count + ' طلب بنجاح!', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ: ' + e.message, 'error');
     }
-  }).catch(err => {
-    console.error('Firebase error:', err);
-    showToast('⚠️ تعذر الاتصال، استخدام البيانات المحلية', 'warning');
-  });
 }
 
-initPortal();
+// Check if no reps registered
+function checkNoReps() {
+    if (reps.length === 0) {
+        document.getElementById('portalLogin').innerHTML = `
+            <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
+                <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <h3 class="text-2xl font-bold text-slate-800 mb-2">بوابة المندوب</h3>
+                <p class="text-slate-500 mb-6">لا توجد بيانات مناديب مسجلة</p>
+                <p class="text-slate-400 text-sm">يجب إضافة المناديب وكلمات المرور من خلال لوحة الإدارة أولاً</p>
+            </div>
+        `;
+    }
+}
+
+// ========== INITIALIZATION ==========
+document.addEventListener('DOMContentLoaded', () => {
+    initFirebaseListeners();
+    // Check after a short delay to allow data to load
+    setTimeout(checkNoReps, 2000);
+});
 </script>
 </body>
 </html>
