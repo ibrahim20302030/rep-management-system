@@ -259,10 +259,78 @@ const repPasswordsRef = db.ref('repPasswords');
                         <span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>
                     </div>
                 </div>
+
+                <!-- Full Salary Details -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        تفاصيل الراتب الكاملة
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-center">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-3 py-3 font-bold text-slate-700">البيان</th>
+                                    <th class="px-3 py-3 font-bold text-slate-700">القيمة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portalSalaryDetails">
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">الطلبات</td><td class="px-3 py-3 font-bold" id="portalSalOrders">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إجمالي الراتب</td><td class="px-3 py-3 font-bold text-blue-600" id="portalSalBase">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">محفظة</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalWallet">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">طلبات متعدد</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalMulti">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">مرفوضة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalRejected">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">غياب</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalAbsence">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">عدم حضور</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalNoShow">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">خصومات أخرى</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalOther">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سيارة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalCar">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">بنزين</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalFuel">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سلف</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalLoans">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سكن</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalHousing">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إضافي</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalExtra">0</td></tr>
+                                <tr class="bg-emerald-50"><td class="px-3 py-3 font-bold text-emerald-800">صافي الراتب</td><td class="px-3 py-3 font-bold text-emerald-600 text-lg" id="portalSalNet">0</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+                <!-- Full Salary Details -->
+                <div class="bg-white rounded-2xl shadow-lg p-6 mt-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        تفاصيل الراتب الكاملة
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-center">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-3 py-3 font-bold text-slate-700">البيان</th>
+                                    <th class="px-3 py-3 font-bold text-slate-700">القيمة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="portalSalaryDetails">
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">الطلبات</td><td class="px-3 py-3 font-bold" id="portalSalOrders">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إجمالي الراتب</td><td class="px-3 py-3 font-bold text-blue-600" id="portalSalBase">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">محفظة</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalWallet">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">طلبات متعدد</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalMulti">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">مرفوضة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalRejected">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">غياب</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalAbsence">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">عدم حضور</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalNoShow">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">خصومات أخرى</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalOther">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سيارة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalCar">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">بنزين</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalFuel">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سلف</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalLoans">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سكن</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalHousing">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إضافي</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalExtra">0</td></tr>
+                                <tr class="bg-emerald-50"><td class="px-3 py-3 font-bold text-emerald-800">صافي الراتب</td><td class="px-3 py-3 font-bold text-emerald-600 text-lg" id="portalSalNet">0</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
 
 <script>
 // ========== FIREBASE DATA MANAGEMENT ==========
@@ -271,6 +339,7 @@ let orders = {};
 let loans = [];
 let cars = [];
 let repPasswords = {};
+let salaries = {};
 let currentPortalRep = null;
 
 function setSyncStatus(status, msg) {
@@ -320,7 +389,52 @@ function initFirebaseListeners() {
         repPasswords = snapshot.val() || {};
     });
 
+    const salariesRef = db.ref('salaries');
+    salariesRef.on('value', (snapshot) => {
+        salaries = snapshot.val() || {};
+        if (currentPortalRep) portalRefresh();
+    });
+
     setSyncStatus('online', '🟢 متصل بـ Firebase');
+}
+
+function getRepOrdersForMonth(repId, month, year) {
+    const daysInMonth = new Date(year, parseInt(month) + 1, 0).getDate();
+    let total = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(parseInt(month)+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        total += (orders[dateStr] && orders[dateStr][repId]) || 0;
+    }
+    return total;
+}
+
+function getDefaultSalaryData(repId, month, year) {
+    const orderCount = getRepOrdersForMonth(repId, month, year);
+    const baseSalary = orderCount * 5;
+    const debt = getRepDebt(repId);
+    return {
+        orders: orderCount,
+        baseSalary: baseSalary,
+        wallet: 0,
+        multiOrders: 0,
+        rejected: 0,
+        absence: 0,
+        noShow: 0,
+        otherDeductions: 0,
+        car: 0,
+        fuel: 0,
+        loans: debt > 0 ? debt : 0,
+        housing: 0,
+        extra: 0
+    };
+}
+
+function calculateNet(s) {
+    const additions = parseFloat(s.baseSalary || 0) + parseFloat(s.wallet || 0) + parseFloat(s.extra || 0);
+    const deductions = parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
+                      parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
+                      parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
+    return additions - deductions;
 }
 
 function getRepDebt(repId) {
@@ -575,6 +689,70 @@ function portalRefresh() {
     } else {
         achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
     }
+
+    // Update Salary Info
+    const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
+    const sal = {
+        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
+        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+    };
+    const netSalary = calculateNet(sal);
+    const totalDeductions = parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
+    const totalExtras = parseFloat(sal.wallet||0)+parseFloat(sal.extra||0);
+
+    const psEl = document.getElementById('portalSalary');
+    const pbEl = document.getElementById('portalBaseSalary');
+    const pdEl = document.getElementById('portalDeductions');
+    const peEl = document.getElementById('portalExtras');
+
+    if (psEl) psEl.textContent = netSalary.toFixed(2) + ' ريال';
+    if (pbEl) pbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+    if (pdEl) pdEl.textContent = totalDeductions.toFixed(2) + ' ريال';
+    if (peEl) peEl.textContent = totalExtras.toFixed(2) + ' ريال';
+
+    // Update Full Salary Details Table
+    const psoEl = document.getElementById('portalSalOrders');
+    const psbEl = document.getElementById('portalSalBase');
+    const pswEl = document.getElementById('portalSalWallet');
+    const psmEl = document.getElementById('portalSalMulti');
+    const psrEl = document.getElementById('portalSalRejected');
+    const psaEl = document.getElementById('portalSalAbsence');
+    const psnEl = document.getElementById('portalSalNoShow');
+    const pso2El = document.getElementById('portalSalOther');
+    const pscEl = document.getElementById('portalSalCar');
+    const psfEl = document.getElementById('portalSalFuel');
+    const pslEl = document.getElementById('portalSalLoans');
+    const pshEl = document.getElementById('portalSalHousing');
+    const pseEl = document.getElementById('portalSalExtra');
+    const psn2El = document.getElementById('portalSalNet');
+
+    if (psoEl) psoEl.textContent = sal.orders;
+    if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+    if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
+    if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
+    if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
+    if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
+    if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
+    if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
+    if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
+    if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
+    if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
+    if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
+    if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
+    if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
 }
 
 async function portalSaveOrder() {
