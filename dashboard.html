@@ -10,7 +10,30 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="firebase-config.js"></script>
+    <script>
+// Firebase Configuration - Embedded
+const firebaseConfig = {
+  apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
+  authDomain: "rep-management-system.firebaseapp.com",
+  databaseURL: "https://rep-management-system-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "rep-management-system",
+  storageBucket: "rep-management-system.firebasestorage.app",
+  messagingSenderId: "416275066968",
+  appId: "1:416275066968:web:ba70ac29799f0434179a2d"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Database references
+const repsRef = db.ref('reps');
+const ordersRef = db.ref('orders');
+const loansRef = db.ref('loans');
+const carsRef = db.ref('cars');
+const bankEntriesRef = db.ref('bankEntries');
+const repPasswordsRef = db.ref('repPasswords');
+</script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
         * { font-family: 'Cairo', sans-serif; }
@@ -155,6 +178,9 @@
             </button>
             <button onclick="showPage('bank')" id="nav_bank" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><path d="M4 10v11"/><path d="M20 10v11"/><path d="M8 14v3"/><path d="M12 14v3"/><path d="M16 14v3"/></svg> البنك
+            </button>
+            <button onclick="showPage('salary')" id="nav_salary" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> الرواتب
             </button>
             <button onclick="showPage('portal')" id="nav_portal" class="nav-item w-full text-right px-4 py-3 rounded-xl transition hover:bg-slate-700 flex items-center gap-3">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> بوابة المندوب
@@ -853,6 +879,117 @@
             </div>
         </div>
 
+        <div id="salaryPage" class="page max-w-7xl mx-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800 mb-2">الرواتب</h2>
+                    <p class="text-slate-500">إدارة رواتب المناديب وحساب الصافي</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <select id="salaryMonth" onchange="renderSalary()" class="px-4 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                        <option value="0">يناير</option>
+                        <option value="1">فبراير</option>
+                        <option value="2">مارس</option>
+                        <option value="3">إبريل</option>
+                        <option value="4">مايو</option>
+                        <option value="5">يونيو</option>
+                        <option value="6">يوليو</option>
+                        <option value="7">أغسطس</option>
+                        <option value="8">سبتمبر</option>
+                        <option value="9">أكتوبر</option>
+                        <option value="10">نوفمبر</option>
+                        <option value="11">ديسمبر</option>
+                    </select>
+                    <select id="salaryYear" onchange="renderSalary()" class="px-4 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                    <button onclick="saveSalaries()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ
+                    </button>
+                    <div class="relative">
+                        <button onclick="toggleExportMenu('salary')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                        <div id="exportMenu_salary" class="export-menu">
+                            <button onclick="exportSalaryReport()">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير كشف الرواتب
+                            </button>
+                        </div>
+                    </div>
+                    <button onclick="printPage('salary')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">إجمالي الرواتب</div>
+                    <div class="text-4xl font-bold" id="totalSalaries">0</div>
+                    <div class="text-blue-200 text-sm">ريال سعودي</div>
+                </div>
+                <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">إجمالي الطلبات</div>
+                    <div class="text-4xl font-bold" id="totalSalaryOrders">0</div>
+                    <div class="text-emerald-200 text-sm">طلب هذا الشهر</div>
+                </div>
+                <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">إجمالي الخصومات</div>
+                    <div class="text-4xl font-bold" id="totalDeductions">0</div>
+                    <div class="text-orange-200 text-sm">ريال سعودي</div>
+                </div>
+                <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg">
+                    <div class="text-sm opacity-80 mb-2">إجمالي الإضافي</div>
+                    <div class="text-4xl font-bold" id="totalExtras">0</div>
+                    <div class="text-purple-200 text-sm">ريال سعودي</div>
+                </div>
+            </div>
+
+            <!-- Salary Table -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="p-6 border-b border-slate-100">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        كشف رواتب المناديب
+                    </h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-center">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-3 py-4 font-bold text-slate-700 sticky right-0 bg-slate-50 z-10 border-l">#</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">المندوب</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">الطلبات</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">إجمالي الراتب</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">محفظة</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">طلبات متعدد</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">مرفوضة</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">غياب</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">عدم حضور</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">خصومات أخرى</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">سيارة</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">بنزين</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">سلف</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">سكن</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">إضافي</th>
+                                <th class="px-3 py-4 font-bold text-emerald-700 bg-emerald-50">صافي الراتب</th>
+                            </tr>
+                        </thead>
+                        <tbody id="salaryTableBody"></tbody>
+                    </table>
+                </div>
+                <div id="salaryEmpty" class="hidden text-center py-12 text-slate-400">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-slate-300"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <p>لا يوجد مناديب مسجلين</p>
+                </div>
+            </div>
+        </div>
+
         <div id="portalPage" class="page max-w-5xl mx-auto">
             <div class="flex justify-between items-center mb-6">
                 <div>
@@ -1011,6 +1148,20 @@
                             </div>
                         </div>
 
+                <!-- Salary Status -->
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        راتب الشهر الحالي
+                    </h3>
+                    <div id="portalSalaryInfo" class="space-y-3">
+                        <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">صافي الراتب</span><span class="font-bold text-emerald-600 text-lg" id="portalSalary">0 ريال</span></div>
+                        <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الراتب الأساسي</span><span class="font-bold text-slate-800" id="portalBaseSalary">0 ريال</span></div>
+                        <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الخصومات</span><span class="font-bold text-red-600" id="portalDeductions">0 ريال</span></div>
+                        <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الإضافي</span><span class="font-bold text-emerald-600" id="portalExtras">0 ريال</span></div>
+                    </div>
+                </div>
+
                         <!-- Achievements -->
                         <div class="bg-white rounded-2xl shadow-lg p-6">
                             <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -1070,6 +1221,7 @@ let loans = [];
 let cars = [];
 let bankEntries = [];
 let repPasswords = {};
+let salaries = {};
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let currentPortalRep = null;
@@ -1136,6 +1288,14 @@ function initFirebaseListeners() {
         repPasswords = snapshot.val() || {};
     });
 
+    // Salaries listener
+    const salariesRef = db.ref('salaries');
+    salariesRef.on('value', (snapshot) => {
+        salaries = snapshot.val() || {};
+        if (document.querySelector('#salaryPage.active')) renderSalary();
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
     setSyncStatus('online', '🟢 متصل بـ Firebase');
 }
 
@@ -1154,6 +1314,7 @@ function showPage(page) {
     if (page === 'loans') initLoansPage();
     if (page === 'cars') initCarsPage();
     if (page === 'bank') initBankPage();
+    if (page === 'salary') initSalaryPage();
     if (page === 'portal') {
         if (currentPortalRep) portalRefresh();
     }
@@ -2177,6 +2338,39 @@ function portalRefresh() {
     } else {
         achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
     }
+
+    // Update Salary Info in Portal
+    const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
+    const sal = {
+        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
+        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+    };
+    const netSalary = calculateNet(sal);
+    const totalDeductions = parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
+    const totalExtras = parseFloat(sal.wallet||0)+parseFloat(sal.extra||0);
+
+    const portalSalaryEl = document.getElementById('portalSalary');
+    const portalBaseEl = document.getElementById('portalBaseSalary');
+    const portalDedEl = document.getElementById('portalDeductions');
+    const portalExtEl = document.getElementById('portalExtras');
+
+    if (portalSalaryEl) portalSalaryEl.textContent = netSalary.toFixed(2) + ' ريال';
+    if (portalBaseEl) portalBaseEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+    if (portalDedEl) portalDedEl.textContent = totalDeductions.toFixed(2) + ' ريال';
+    if (portalExtEl) portalExtEl.textContent = totalExtras.toFixed(2) + ' ريال';
 }
 
 async function portalSaveOrder() {
@@ -2449,6 +2643,7 @@ function printPage(page) {
             body { background: white !important; }
             .page { display: none !important; }
             #${page}Page { display: block !important; }
+            #salaryPage { display: block !important; }
             .kpi-card, .bg-white { break-inside: avoid; }
             table { font-size: 10px !important; }
             th, td { padding: 4px 6px !important; }
@@ -2467,6 +2662,248 @@ function printPage(page) {
             currentActive.classList.add('active');
         }
     }, 100);
+}
+
+
+// ========== SALARY MANAGEMENT ==========
+
+function initSalaryPage() {
+    const monthSelect = document.getElementById('salaryMonth');
+    const yearSelect = document.getElementById('salaryYear');
+    monthSelect.value = currentMonth;
+    yearSelect.value = currentYear;
+    renderSalary();
+}
+
+function getSalaryKey() {
+    const month = document.getElementById('salaryMonth').value;
+    const year = document.getElementById('salaryYear').value;
+    return `${year}-${String(parseInt(month)+1).padStart(2,'0')}`;
+}
+
+function getRepOrdersForMonth(repId, month, year) {
+    const daysInMonth = new Date(year, parseInt(month) + 1, 0).getDate();
+    let total = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(parseInt(month)+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        total += (orders[dateStr] && orders[dateStr][repId]) || 0;
+    }
+    return total;
+}
+
+function getDefaultSalaryData(repId, month, year) {
+    const orderCount = getRepOrdersForMonth(repId, month, year);
+    const baseSalary = orderCount * 5;
+    const debt = getRepDebt(repId);
+    return {
+        orders: orderCount,
+        baseSalary: baseSalary,
+        wallet: 0,
+        multiOrders: 0,
+        rejected: 0,
+        absence: 0,
+        noShow: 0,
+        otherDeductions: 0,
+        car: 0,
+        fuel: 0,
+        loans: debt > 0 ? debt : 0,
+        housing: 0,
+        extra: 0
+    };
+}
+
+function calculateNet(s) {
+    const additions = parseFloat(s.baseSalary || 0) + parseFloat(s.wallet || 0) + parseFloat(s.extra || 0);
+    const deductions = parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
+                      parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
+                      parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
+    return additions - deductions;
+}
+
+function renderSalary() {
+    const key = getSalaryKey();
+    const month = document.getElementById('salaryMonth').value;
+    const year = document.getElementById('salaryYear').value;
+    const tbody = document.getElementById('salaryTableBody');
+    const emptyDiv = document.getElementById('salaryEmpty');
+
+    if (reps.length === 0) {
+        tbody.innerHTML = '';
+        emptyDiv.classList.remove('hidden');
+        updateSalarySummary({totalSalaries: 0, totalOrders: 0, totalDeductions: 0, totalExtras: 0});
+        return;
+    }
+    emptyDiv.classList.add('hidden');
+
+    const monthData = salaries[key] || {};
+    let totalSalaries = 0, totalOrders = 0, totalDeductions = 0, totalExtras = 0;
+
+    tbody.innerHTML = reps.map((rep, idx) => {
+        const saved = monthData[rep.id] || {};
+        const defaults = getDefaultSalaryData(rep.id, month, year);
+
+        const s = {
+            orders: saved.orders !== undefined ? saved.orders : defaults.orders,
+            baseSalary: saved.baseSalary !== undefined ? saved.baseSalary : defaults.baseSalary,
+            wallet: saved.wallet !== undefined ? saved.wallet : defaults.wallet,
+            multiOrders: saved.multiOrders !== undefined ? saved.multiOrders : defaults.multiOrders,
+            rejected: saved.rejected !== undefined ? saved.rejected : defaults.rejected,
+            absence: saved.absence !== undefined ? saved.absence : defaults.absence,
+            noShow: saved.noShow !== undefined ? saved.noShow : defaults.noShow,
+            otherDeductions: saved.otherDeductions !== undefined ? saved.otherDeductions : defaults.otherDeductions,
+            car: saved.car !== undefined ? saved.car : defaults.car,
+            fuel: saved.fuel !== undefined ? saved.fuel : defaults.fuel,
+            loans: saved.loans !== undefined ? saved.loans : defaults.loans,
+            housing: saved.housing !== undefined ? saved.housing : defaults.housing,
+            extra: saved.extra !== undefined ? saved.extra : defaults.extra
+        };
+
+        const net = calculateNet(s);
+        totalSalaries += parseFloat(s.baseSalary || 0);
+        totalOrders += parseInt(s.orders || 0);
+        totalDeductions += parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
+                           parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
+                           parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
+        totalExtras += parseFloat(s.extra || 0) + parseFloat(s.wallet || 0);
+
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-3 py-3 text-slate-500 font-bold sticky right-0 bg-white z-10 border-l">${idx + 1}</td>
+                <td class="px-3 py-3 font-bold text-slate-800">${rep.name}</td>
+                <td class="px-3 py-3"><input type="number" id="sal_orders_${rep.id}" value="${s.orders}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'orders', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_base_${rep.id}" value="${s.baseSalary}" class="w-20 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'baseSalary', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_wallet_${rep.id}" value="${s.wallet}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'wallet', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_multi_${rep.id}" value="${s.multiOrders}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'multiOrders', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_rejected_${rep.id}" value="${s.rejected}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'rejected', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_absence_${rep.id}" value="${s.absence}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'absence', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_noshow_${rep.id}" value="${s.noShow}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'noShow', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_other_${rep.id}" value="${s.otherDeductions}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'otherDeductions', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_car_${rep.id}" value="${s.car}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'car', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_fuel_${rep.id}" value="${s.fuel}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'fuel', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_loans_${rep.id}" value="${s.loans}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'loans', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_housing_${rep.id}" value="${s.housing}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'housing', this.value)"></td>
+                <td class="px-3 py-3"><input type="number" id="sal_extra_${rep.id}" value="${s.extra}" class="w-16 text-center py-1 border border-slate-200 rounded-lg text-sm font-mono" onchange="updateSalaryField('${rep.id}', 'extra', this.value)"></td>
+                <td class="px-3 py-3 font-bold text-emerald-600 bg-emerald-50 font-mono text-lg" id="sal_net_${rep.id}">${net.toFixed(2)}</td>
+            </tr>`;
+    }).join('');
+
+    updateSalarySummary({totalSalaries, totalOrders, totalDeductions, totalExtras});
+}
+
+function updateSalaryField(repId, field, value) {
+    const key = getSalaryKey();
+    if (!salaries[key]) salaries[key] = {};
+    if (!salaries[key][repId]) salaries[key][repId] = {};
+    salaries[key][repId][field] = parseFloat(value) || 0;
+
+    const s = salaries[key][repId];
+    const net = calculateNet(s);
+    document.getElementById(`sal_net_${repId}`).textContent = net.toFixed(2);
+
+    recalcSummary();
+}
+
+function recalcSummary() {
+    const key = getSalaryKey();
+    const monthData = salaries[key] || {};
+    const month = document.getElementById('salaryMonth').value;
+    const year = document.getElementById('salaryYear').value;
+    let totalSalaries = 0, totalOrders = 0, totalDeductions = 0, totalExtras = 0;
+
+    reps.forEach(rep => {
+        const saved = monthData[rep.id] || {};
+        const defaults = getDefaultSalaryData(rep.id, month, year);
+        const s = {
+            orders: saved.orders !== undefined ? saved.orders : defaults.orders,
+            baseSalary: saved.baseSalary !== undefined ? saved.baseSalary : defaults.baseSalary,
+            wallet: saved.wallet !== undefined ? saved.wallet : defaults.wallet,
+            multiOrders: saved.multiOrders !== undefined ? saved.multiOrders : defaults.multiOrders,
+            rejected: saved.rejected !== undefined ? saved.rejected : defaults.rejected,
+            absence: saved.absence !== undefined ? saved.absence : defaults.absence,
+            noShow: saved.noShow !== undefined ? saved.noShow : defaults.noShow,
+            otherDeductions: saved.otherDeductions !== undefined ? saved.otherDeductions : defaults.otherDeductions,
+            car: saved.car !== undefined ? saved.car : defaults.car,
+            fuel: saved.fuel !== undefined ? saved.fuel : defaults.fuel,
+            loans: saved.loans !== undefined ? saved.loans : defaults.loans,
+            housing: saved.housing !== undefined ? saved.housing : defaults.housing,
+            extra: saved.extra !== undefined ? saved.extra : defaults.extra
+        };
+        totalSalaries += parseFloat(s.baseSalary || 0);
+        totalOrders += parseInt(s.orders || 0);
+        totalDeductions += parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
+                           parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
+                           parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
+        totalExtras += parseFloat(s.extra || 0) + parseFloat(s.wallet || 0);
+    });
+
+    updateSalarySummary({totalSalaries, totalOrders, totalDeductions, totalExtras});
+}
+
+function updateSalarySummary(data) {
+    document.getElementById('totalSalaries').textContent = data.totalSalaries.toFixed(2);
+    document.getElementById('totalSalaryOrders').textContent = data.totalOrders;
+    document.getElementById('totalDeductions').textContent = data.totalDeductions.toFixed(2);
+    document.getElementById('totalExtras').textContent = data.totalExtras.toFixed(2);
+}
+
+async function saveSalaries() {
+    const key = getSalaryKey();
+    try {
+        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        const salariesRef = db.ref('salaries');
+        await salariesRef.child(key).set(salaries[key] || {});
+        showToast('تم حفظ بيانات الرواتب بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ في الحفظ: ' + e.message, 'error');
+    }
+}
+
+function exportSalaryReport() {
+    const key = getSalaryKey();
+    const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const month = document.getElementById('salaryMonth').value;
+    const year = document.getElementById('salaryYear').value;
+    const monthData = salaries[key] || {};
+
+    if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
+
+    const headers = ['#', 'المندوب', 'الطلبات', 'إجمالي الراتب', 'محفظة', 'طلبات متعدد', 'مرفوضة', 'غياب', 'عدم حضور', 'خصومات أخرى', 'سيارة', 'بنزين', 'سلف', 'سكن', 'إضافي', 'صافي الراتب'];
+    const data = [];
+    let totalNet = 0;
+
+    reps.forEach((rep, idx) => {
+        const saved = monthData[rep.id] || {};
+        const defaults = getDefaultSalaryData(rep.id, month, year);
+        const s = {
+            orders: saved.orders !== undefined ? saved.orders : defaults.orders,
+            baseSalary: saved.baseSalary !== undefined ? saved.baseSalary : defaults.baseSalary,
+            wallet: saved.wallet !== undefined ? saved.wallet : defaults.wallet,
+            multiOrders: saved.multiOrders !== undefined ? saved.multiOrders : defaults.multiOrders,
+            rejected: saved.rejected !== undefined ? saved.rejected : defaults.rejected,
+            absence: saved.absence !== undefined ? saved.absence : defaults.absence,
+            noShow: saved.noShow !== undefined ? saved.noShow : defaults.noShow,
+            otherDeductions: saved.otherDeductions !== undefined ? saved.otherDeductions : defaults.otherDeductions,
+            car: saved.car !== undefined ? saved.car : defaults.car,
+            fuel: saved.fuel !== undefined ? saved.fuel : defaults.fuel,
+            loans: saved.loans !== undefined ? saved.loans : defaults.loans,
+            housing: saved.housing !== undefined ? saved.housing : defaults.housing,
+            extra: saved.extra !== undefined ? saved.extra : defaults.extra
+        };
+        const net = calculateNet(s);
+        totalNet += net;
+        data.push([idx + 1, rep.name, s.orders, s.baseSalary.toFixed(2), s.wallet.toFixed(2), s.multiOrders.toFixed(2), s.rejected.toFixed(2), s.absence.toFixed(2), s.noShow.toFixed(2), s.otherDeductions.toFixed(2), s.car.toFixed(2), s.fuel.toFixed(2), s.loans.toFixed(2), s.housing.toFixed(2), s.extra.toFixed(2), net.toFixed(2)]);
+    });
+
+    data.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', 'الإجمالي', totalNet.toFixed(2)]);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    ws['!rtl'] = true;
+    ws['!cols'] = [{wch:4}, {wch:18}, {wch:8}, {wch:12}, {wch:8}, {wch:10}, {wch:8}, {wch:8}, {wch:8}, {wch:10}, {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, 'كشف الرواتب');
+    XLSX.writeFile(wb, `كشف_الرواتب_${monthNames[month]}_${year}.xlsx`);
+    showToast('تم تصدير كشف الرواتب', 'success');
 }
 
 // ========== INITIALIZATION ==========
