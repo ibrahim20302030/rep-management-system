@@ -268,7 +268,7 @@ const repPasswordsRef = db.ref('repPasswords');
                             تفاصيل الراتب الكاملة
                         </h3>
                         <div class="flex items-center gap-2">
-                            <select id="portalSalaryMonth" onchange="portalRefresh()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                            <select id="portalSalaryMonth" onchange="portalRefreshSalaryOnly()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
                                 <option value="0">يناير</option>
                                 <option value="1">فبراير</option>
                                 <option value="2">مارس</option>
@@ -282,7 +282,7 @@ const repPasswordsRef = db.ref('repPasswords');
                                 <option value="10">نوفمبر</option>
                                 <option value="11">ديسمبر</option>
                             </select>
-                            <select id="portalSalaryYear" onchange="portalRefresh()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                            <select id="portalSalaryYear" onchange="portalRefreshSalaryOnly()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
                                 <option value="2026">2026</option>
                                 <option value="2027">2027</option>
                                 <option value="2028">2028</option>
@@ -469,6 +469,9 @@ function portalLogin() {
     document.getElementById('portalOrderDate').value = new Date().toISOString().split('T')[0];
 
     // Initialize salary month/year selectors
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
     const psmEl = document.getElementById('portalSalaryMonth');
     const psyEl = document.getElementById('portalSalaryYear');
     if (psmEl) psmEl.value = currentMonth;
@@ -688,12 +691,10 @@ function portalRefresh() {
         achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
     }
 
-    // Update Salary Info
-    const selectedMonth = parseInt(document.getElementById('portalSalaryMonth')?.value || currentMonth);
-    const selectedYear = parseInt(document.getElementById('portalSalaryYear')?.value || currentYear);
-    const salaryKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}`;
+    // Update Salary Info - ALWAYS uses current month/year (independent of salary selectors)
+    const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
-    const salaryDefaults = getDefaultSalaryData(repId, selectedMonth, selectedYear);
+    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
     const sal = {
         orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
         baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
@@ -710,20 +711,8 @@ function portalRefresh() {
         extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
     };
     const netSalary = calculateNet(sal);
-    const totalDeductions = parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
-    const totalExtras = parseFloat(sal.wallet||0)+parseFloat(sal.extra||0);
 
-    const psEl = document.getElementById('portalSalary');
-    const pbEl = document.getElementById('portalBaseSalary');
-    const pdEl = document.getElementById('portalDeductions');
-    const peEl = document.getElementById('portalExtras');
-
-    if (psEl) psEl.textContent = netSalary.toFixed(2) + ' ريال';
-    if (pbEl) pbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-    if (pdEl) pdEl.textContent = totalDeductions.toFixed(2) + ' ريال';
-    if (peEl) peEl.textContent = totalExtras.toFixed(2) + ' ريال';
-
-    // Update Full Salary Details Table
+    // Update Full Salary Details Table (current month only)
     const psoEl = document.getElementById('portalSalOrders');
     const psbEl = document.getElementById('portalSalBase');
     const pswEl = document.getElementById('portalSalWallet');
@@ -754,7 +743,66 @@ function portalRefresh() {
     if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
     if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
 }
+function portalRefreshSalaryOnly() {
+    if (!currentPortalRep) return;
+    const repId = currentPortalRep.id;
 
+    const selectedMonth = parseInt(document.getElementById('portalSalaryMonth')?.value || new Date().getMonth());
+    const selectedYear = parseInt(document.getElementById('portalSalaryYear')?.value || new Date().getFullYear());
+    const salaryKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}`;
+
+    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+    const salaryDefaults = getDefaultSalaryData(repId, selectedMonth, selectedYear);
+
+    const sal = {
+        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
+        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+    };
+
+    const netSalary = calculateNet(sal);
+
+    // Update Full Salary Details Table ONLY (based on selected month/year)
+    const psoEl = document.getElementById('portalSalOrders');
+    const psbEl = document.getElementById('portalSalBase');
+    const pswEl = document.getElementById('portalSalWallet');
+    const psmEl = document.getElementById('portalSalMulti');
+    const psrEl = document.getElementById('portalSalRejected');
+    const psaEl = document.getElementById('portalSalAbsence');
+    const psnEl = document.getElementById('portalSalNoShow');
+    const pso2El = document.getElementById('portalSalOther');
+    const pscEl = document.getElementById('portalSalCar');
+    const psfEl = document.getElementById('portalSalFuel');
+    const pslEl = document.getElementById('portalSalLoans');
+    const pshEl = document.getElementById('portalSalHousing');
+    const pseEl = document.getElementById('portalSalExtra');
+    const psn2El = document.getElementById('portalSalNet');
+
+    if (psoEl) psoEl.textContent = sal.orders;
+    if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+    if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
+    if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
+    if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
+    if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
+    if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
+    if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
+    if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
+    if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
+    if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
+    if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
+    if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
+    if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
+}
 async function portalSaveOrder() {
     if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
     const date = document.getElementById('portalOrderDate').value;
