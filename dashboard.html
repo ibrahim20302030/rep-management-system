@@ -909,6 +909,14 @@ const repPasswordsRef = db.ref('repPasswords');
                     <button onclick="saveSalaries()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ
                     </button>
+                    <!-- زر استيراد Excel -->
+                    <div class="relative">
+                        <input type="file" id="excelImport" accept=".xlsx,.xls" onchange="importExcelSalary()" class="hidden">
+                        <label for="excelImport" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 cursor-pointer transition">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg> 
+                            استيراد من Excel
+                        </label>
+                    </div>
                     <div class="relative">
                         <button onclick="toggleExportMenu('salary')" class="export-btn text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg> تصدير
@@ -939,12 +947,12 @@ const repPasswordsRef = db.ref('repPasswords');
                     <div class="text-emerald-200 text-sm">طلب هذا الشهر</div>
                 </div>
                 <div class="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-2xl p-6 shadow-lg">
-                    <div class="text-sm opacity-80 mb-2">إجمالي الخصومات</div>
+                    <div class="text-sm opacity-80 mb-2">إجمالي خصم السلف</div>
                     <div class="text-4xl font-bold" id="totalDeductions">0</div>
                     <div class="text-orange-200 text-sm">ريال سعودي</div>
                 </div>
                 <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-6 shadow-lg">
-                    <div class="text-sm opacity-80 mb-2">إجمالي الإضافي</div>
+                    <div class="text-sm opacity-80 mb-2">إجمالي صافي الرواتب</div>
                     <div class="text-4xl font-bold" id="totalExtras">0</div>
                     <div class="text-purple-200 text-sm">ريال سعودي</div>
                 </div>
@@ -967,7 +975,7 @@ const repPasswordsRef = db.ref('repPasswords');
                                 <th class="px-3 py-4 font-bold text-slate-700">الطلبات</th>
                                 <th class="px-3 py-4 font-bold text-slate-700">إجمالي الراتب</th>
                                 <th class="px-3 py-4 font-bold text-slate-700">محفظة</th>
-                                <th class="px-3 py-4 font-bold text-slate-700">طلبات متعدد</th>
+                                <th class="px-3 py-4 font-bold text-slate-700">طلبات متعددة</th>
                                 <th class="px-3 py-4 font-bold text-slate-700">مرفوضة</th>
                                 <th class="px-3 py-4 font-bold text-slate-700">غياب</th>
                                 <th class="px-3 py-4 font-bold text-slate-700">عدم حضور</th>
@@ -2359,8 +2367,8 @@ function portalRefresh() {
         extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
     };
     const netSalary = calculateNet(sal);
-    const totalDeductions = parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
-    const totalExtras = parseFloat(sal.wallet||0)+parseFloat(sal.extra||0);
+    const totalDeductions = parseFloat(sal.wallet||0)+parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
+    const totalExtras = parseFloat(sal.extra||0);
 
     const portalSalaryEl = document.getElementById('portalSalary');
     const portalBaseEl = document.getElementById('portalBaseSalary');
@@ -2713,8 +2721,8 @@ function getDefaultSalaryData(repId, month, year) {
 }
 
 function calculateNet(s) {
-    const additions = parseFloat(s.baseSalary || 0) + parseFloat(s.wallet || 0) + parseFloat(s.extra || 0);
-    const deductions = parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
+    const additions = parseFloat(s.baseSalary || 0) + parseFloat(s.extra || 0);
+    const deductions = parseFloat(s.wallet || 0) + parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
                       parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
                       parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
     return additions - deductions;
@@ -2730,13 +2738,13 @@ function renderSalary() {
     if (reps.length === 0) {
         tbody.innerHTML = '';
         emptyDiv.classList.remove('hidden');
-        updateSalarySummary({totalSalaries: 0, totalOrders: 0, totalDeductions: 0, totalExtras: 0});
+        updateSalarySummary({totalSalaries: 0, totalOrders: 0, totalLoansDeductions: 0, totalNetSalaries: 0});
         return;
     }
     emptyDiv.classList.add('hidden');
 
     const monthData = salaries[key] || {};
-    let totalSalaries = 0, totalOrders = 0, totalDeductions = 0, totalExtras = 0;
+    let totalSalaries = 0, totalOrders = 0, totalLoansDeductions = 0, totalNetSalaries = 0;
 
     tbody.innerHTML = reps.map((rep, idx) => {
         const saved = monthData[rep.id] || {};
@@ -2761,10 +2769,8 @@ function renderSalary() {
         const net = calculateNet(s);
         totalSalaries += parseFloat(s.baseSalary || 0);
         totalOrders += parseInt(s.orders || 0);
-        totalDeductions += parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
-                           parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
-                           parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
-        totalExtras += parseFloat(s.extra || 0) + parseFloat(s.wallet || 0);
+        totalLoansDeductions += parseFloat(s.loans || 0);
+        totalNetSalaries += net;
 
         return `
             <tr class="border-b hover:bg-slate-50 transition">
@@ -2787,7 +2793,7 @@ function renderSalary() {
             </tr>`;
     }).join('');
 
-    updateSalarySummary({totalSalaries, totalOrders, totalDeductions, totalExtras});
+    updateSalarySummary({totalSalaries, totalOrders, totalLoansDeductions, totalNetSalaries});
 }
 
 function updateSalaryField(repId, field, value) {
@@ -2808,7 +2814,7 @@ function recalcSummary() {
     const monthData = salaries[key] || {};
     const month = document.getElementById('salaryMonth').value;
     const year = document.getElementById('salaryYear').value;
-    let totalSalaries = 0, totalOrders = 0, totalDeductions = 0, totalExtras = 0;
+    let totalSalaries = 0, totalOrders = 0, totalLoansDeductions = 0, totalNetSalaries = 0;
 
     reps.forEach(rep => {
         const saved = monthData[rep.id] || {};
@@ -2830,20 +2836,18 @@ function recalcSummary() {
         };
         totalSalaries += parseFloat(s.baseSalary || 0);
         totalOrders += parseInt(s.orders || 0);
-        totalDeductions += parseFloat(s.multiOrders || 0) + parseFloat(s.rejected || 0) + parseFloat(s.absence || 0) + 
-                           parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
-                           parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
-        totalExtras += parseFloat(s.extra || 0) + parseFloat(s.wallet || 0);
+        totalLoansDeductions += parseFloat(s.loans || 0);
+        totalNetSalaries += calculateNet(s);
     });
 
-    updateSalarySummary({totalSalaries, totalOrders, totalDeductions, totalExtras});
+    updateSalarySummary({totalSalaries, totalOrders, totalLoansDeductions, totalNetSalaries});
 }
 
 function updateSalarySummary(data) {
     document.getElementById('totalSalaries').textContent = data.totalSalaries.toFixed(2);
     document.getElementById('totalSalaryOrders').textContent = data.totalOrders;
-    document.getElementById('totalDeductions').textContent = data.totalDeductions.toFixed(2);
-    document.getElementById('totalExtras').textContent = data.totalExtras.toFixed(2);
+    document.getElementById('totalDeductions').textContent = data.totalLoansDeductions.toFixed(2);
+    document.getElementById('totalExtras').textContent = data.totalNetSalaries.toFixed(2);
 }
 
 async function saveSalaries() {
@@ -2859,6 +2863,205 @@ async function saveSalaries() {
     }
 }
 
+// ================= استيراد Excel للرواتب =================
+async function importExcelSalary() {
+    const fileInput = document.getElementById('excelImport');
+    const file = fileInput.files[0];
+    if (!file) return;
+
+    // ✅ جديد: التحقق من تحميل المناديب أولاً
+    if (!reps || reps.length === 0) {
+        showToast('جاري تحميل بيانات المناديب... انتظر قليلاً ثم حاول مرة أخرى', 'warning');
+        setSyncStatus('syncing', '🔄 جاري تحميل المناديب...');
+        // محاولة إعادة تحميل المناديب
+        const snapshot = await repsRef.once('value');
+        const data = snapshot.val() || {};
+        reps = Object.keys(data).map(key => ({...data[key], _key: key}));
+        if (reps.length === 0) {
+            showToast('لا يوجد مناديب مسجلين في النظام', 'error');
+            setSyncStatus('online', '🟢 متصل بـ Firebase');
+            return;
+        }
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    }
+
+    try {
+        setSyncStatus('syncing', '🔄 جاري قراءة ملف Excel...');
+
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+        if (jsonData.length < 2) {
+            showToast('الملف فارغ أو غير صحيح', 'error');
+            setSyncStatus('online', '🟢 متصل بـ Firebase');
+            return;
+        }
+
+        const headers = jsonData[0];
+
+        // ✅ جديد: التحقق من العناوين
+        const requiredHeaders = ['المعرف'];
+        const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+        if (missingHeaders.length > 0) {
+            showToast('عمود "المعرف" غير موجود في Excel. تأكد من العناوين', 'error');
+            setSyncStatus('online', '🟢 متصل بـ Firebase');
+            return;
+        }
+
+        const month = document.getElementById('salaryMonth').value;
+        const year = document.getElementById('salaryYear').value;
+        const systemMonthKey = `${year}-${String(parseInt(month)+1).padStart(2,'0')}`;
+
+        // ✅ جديد: محاولة اكتشاف الشهر من Excel أو استخدام الشهر المحدد
+        const monthColIndex = headers.indexOf('الشهر');
+        let excelMonthKey = null;
+        if (monthColIndex >= 0 && jsonData[1] && jsonData[1][monthColIndex]) {
+            excelMonthKey = String(jsonData[1][monthColIndex]).trim();
+        }
+
+        // استخدم الشهر من Excel لو موجود، وإلا استخدم الشهر المحدد في النظام
+        const targetMonthKey = excelMonthKey || systemMonthKey;
+
+        // ✅ جديد: لو الشهر في Excel مختلف، نحذر المستخدم
+        if (excelMonthKey && excelMonthKey !== systemMonthKey) {
+            if (!confirm(`الشهر في Excel (${excelMonthKey}) مختلف عن الشهر المحدد في النظام (${systemMonthKey}).
+هل تريد الاستيراد للشهر ${excelMonthKey}؟`)) {
+                setSyncStatus('online', '🟢 متصل بـ Firebase');
+                return;
+            }
+        }
+
+        // ✅ دالة مساعدة للبحث عن العمود بأسماء متعددة (للتعامل مع اختلافات التشكيل)
+        function findColumnIndex(headers, possibleNames) {
+            for (const name of possibleNames) {
+                const idx = headers.indexOf(name);
+                if (idx >= 0) return idx;
+            }
+            return -1;
+        }
+
+        // تعريف أعمدة البيانات مع دعم أسماء بديلة
+        const colMap = {
+            'المعرف': findColumnIndex(headers, ['المعرف', 'ID', 'id', 'معرف']),
+            'الشهر': findColumnIndex(headers, ['الشهر', 'month', 'التاريخ']),
+            'الطلبات': findColumnIndex(headers, ['الطلبات', 'Orders', 'orders']),
+            'الراتب الأساسي': findColumnIndex(headers, ['الراتب الأساسي', 'Base Salary', 'baseSalary', 'الراتب']),
+            'محفظة': findColumnIndex(headers, ['محفظة', 'Wallet', 'wallet']),
+            'طلبات متعددة': findColumnIndex(headers, ['طلبات متعددة', 'Multi Orders', 'multiOrders', 'طلبات متعدده']),
+            'مرفوضة': findColumnIndex(headers, ['مرفوضة', 'Rejected', 'rejected']),
+            'غياب': findColumnIndex(headers, ['غياب', 'Absence', 'absence']),
+            'عدم حضور': findColumnIndex(headers, ['عدم حضور', 'No Show', 'noShow']),
+            'خصومات أخرى': findColumnIndex(headers, ['خصومات أخرى', 'Other Deductions', 'otherDeductions', 'خصومات']),
+            'سيارة': findColumnIndex(headers, ['سيارة', 'Car', 'car']),
+            'بنزين': findColumnIndex(headers, ['بنزين', 'Fuel', 'fuel']),
+            'سلف': findColumnIndex(headers, ['سلف', 'Loans', 'loans', 'السلف']),
+            'سكن': findColumnIndex(headers, ['سكن', 'Housing', 'housing']),
+            'إضافي': findColumnIndex(headers, ['إضافي', 'Extra', 'extra', 'الإضافي'])
+        };
+
+        const newSalaries = {};
+        if (!newSalaries[targetMonthKey]) newSalaries[targetMonthKey] = {};
+
+        let importedCount = 0;
+        let skippedCount = 0;
+        let notFoundReps = [];
+
+        // ✅ جديد: عرض المعرفات المتاحة للتصحيح
+        console.log('المعرفات المتاحة في النظام:', reps.map(r => r.id));
+        console.log('عدد المناديب:', reps.length);
+
+        // ✅ جديد: عرض الأعمدة المكتشفة للتصحيح
+        console.log('=== أعمدة Excel المكتشفة ===');
+        for (const [key, idx] of Object.entries(colMap)) {
+            console.log(`${key}: ${idx >= 0 ? '✅ موجود بالعمود ' + idx : '❌ غير موجود'}`);
+        }
+        console.log('عناوين Excel الأصلية:', headers);
+
+        for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            const repId = String(row[colMap['المعرف']] || '').trim();
+            if (!repId) continue;
+
+            // التحقق من وجود المندوب في النظام
+            const rep = reps.find(r => String(r.id).trim() === repId);
+            if (!rep) {
+                notFoundReps.push(repId);
+                skippedCount++;
+                console.warn(`المعرف ${repId} غير موجود. المعرفات المتاحة:`, reps.map(r => r.id));
+                continue;
+            }
+
+            newSalaries[targetMonthKey][repId] = {
+                orders: parseFloat(colMap['الطلبات'] >= 0 ? row[colMap['الطلبات']] : 0) || 0,
+                baseSalary: parseFloat(colMap['الراتب الأساسي'] >= 0 ? row[colMap['الراتب الأساسي']] : 0) || 0,
+                wallet: parseFloat(colMap['محفظة'] >= 0 ? row[colMap['محفظة']] : 0) || 0,
+                multiOrders: parseFloat(colMap['طلبات متعددة'] >= 0 ? row[colMap['طلبات متعددة']] : 0) || 0,
+                rejected: parseFloat(colMap['مرفوضة'] >= 0 ? row[colMap['مرفوضة']] : 0) || 0,
+                absence: parseFloat(colMap['غياب'] >= 0 ? row[colMap['غياب']] : 0) || 0,
+                noShow: parseFloat(colMap['عدم حضور'] >= 0 ? row[colMap['عدم حضور']] : 0) || 0,
+                otherDeductions: parseFloat(colMap['خصومات أخرى'] >= 0 ? row[colMap['خصومات أخرى']] : 0) || 0,
+                car: parseFloat(colMap['سيارة'] >= 0 ? row[colMap['سيارة']] : 0) || 0,
+                fuel: parseFloat(colMap['بنزين'] >= 0 ? row[colMap['بنزين']] : 0) || 0,
+                loans: parseFloat(colMap['سلف'] >= 0 ? row[colMap['سلف']] : 0) || 0,
+                housing: parseFloat(colMap['سكن'] >= 0 ? row[colMap['سكن']] : 0) || 0,
+                extra: parseFloat(colMap['إضافي'] >= 0 ? row[colMap['إضافي']] : 0) || 0
+            };
+            importedCount++;
+        }
+
+        if (importedCount === 0) {
+            let msg = 'لم يتم استيراد أي بيانات. ';
+            if (notFoundReps.length > 0) {
+                msg += `المعرفات غير الموجودة: ${notFoundReps.join(', ')}`;
+            } else {
+                msg += 'تأكد من صحة المعرفات في ملف Excel';
+            }
+            // ✅ جديد: عرض المعرفات المتاحة
+            msg += ` | المعرفات المتاحة: ${reps.map(r => r.id).join(', ')}`;
+            showToast(msg, 'warning');
+            setSyncStatus('online', '🟢 متصل بـ Firebase');
+            return;
+        }
+
+        // ✅ جديد: لو الشهر المستورد مختلف، نغير الشهر المحدد في النظام
+        if (excelMonthKey && excelMonthKey !== systemMonthKey) {
+            const [excelYear, excelMonth] = excelMonthKey.split('-');
+            document.getElementById('salaryYear').value = excelYear;
+            document.getElementById('salaryMonth').value = parseInt(excelMonth) - 1;
+        }
+
+        // دمج مع البيانات الحالية
+        if (!salaries[targetMonthKey]) salaries[targetMonthKey] = {};
+        Object.assign(salaries[targetMonthKey], newSalaries[targetMonthKey]);
+
+        // حفظ في Firebase
+        setSyncStatus('syncing', '🔄 جاري الحفظ في Firebase...');
+        const salariesRef = db.ref('salaries');
+        await salariesRef.child(targetMonthKey).set(salaries[targetMonthKey]);
+
+        // إعادة عرض الجدول
+        renderSalary();
+
+        let successMsg = `✅ تم استيراد ${importedCount} مندوب بنجاح`;
+        if (skippedCount > 0) successMsg += ` (تم تخطي ${skippedCount})`;
+        if (notFoundReps.length > 0) successMsg += ` - معرفات غير موجودة: ${notFoundReps.join(', ')}`;
+
+        showToast(successMsg, 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+
+        // إعادة تعيين input
+        fileInput.value = '';
+
+    } catch (e) {
+        console.error(e);
+        showToast('خطأ في قراءة الملف: ' + e.message, 'error');
+        setSyncStatus('offline', '🔴 غير متصل');
+    }
+}
+
 function exportSalaryReport() {
     const key = getSalaryKey();
     const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
@@ -2868,7 +3071,7 @@ function exportSalaryReport() {
 
     if (reps.length === 0) { showToast('لا يوجد مناديب مسجلين', 'warning'); return; }
 
-    const headers = ['#', 'المندوب', 'الطلبات', 'إجمالي الراتب', 'محفظة', 'طلبات متعدد', 'مرفوضة', 'غياب', 'عدم حضور', 'خصومات أخرى', 'سيارة', 'بنزين', 'سلف', 'سكن', 'إضافي', 'صافي الراتب'];
+    const headers = ['#', 'المندوب', 'الطلبات', 'إجمالي الراتب', 'محفظة', 'طلبات متعددة', 'مرفوضة', 'غياب', 'عدم حضور', 'خصومات أخرى', 'سيارة', 'بنزين', 'سلف', 'سكن', 'إضافي', 'صافي الراتب'];
     const data = [];
     let totalNet = 0;
 
