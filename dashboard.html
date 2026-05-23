@@ -33,6 +33,7 @@ const loansRef = db.ref('loans');
 const carsRef = db.ref('cars');
 const bankEntriesRef = db.ref('bankEntries');
 const repPasswordsRef = db.ref('repPasswords');
+const visibilitySettingsRef = db.ref('visibilitySettings');
 </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -934,9 +935,10 @@ const repPasswordsRef = db.ref('repPasswords');
                             </button>
                         </div>
                     </div>
-                    <button onclick="printPage('salary')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
-                    </button>
+                    <button onclick="toggleSalaryVisibility()" id="salaryVisibilityBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition" title="إظهار/إخفاء بيانات الراتب في بوابة المندوب">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span id="visibilityBtnText">إخفاء من المندوب</span>
+                        </button>
                 </div>
             </div>
 
@@ -1163,7 +1165,7 @@ const repPasswordsRef = db.ref('repPasswords');
                         </div>
 
                 <!-- Salary Status -->
-                <div class="bg-white rounded-2xl shadow-lg p-6">
+                <div id="portalSalarySection" class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         راتب الشهر الحالي
@@ -1236,6 +1238,7 @@ let cars = [];
 let bankEntries = [];
 let repPasswords = {};
 let salaries = {};
+let salaryVisibleToReps = true;
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let currentPortalRep = null;
@@ -1307,6 +1310,13 @@ function initFirebaseListeners() {
     salariesRef.on('value', (snapshot) => {
         salaries = snapshot.val() || {};
         if (document.querySelector('#salaryPage.active')) renderSalary();
+        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
+    });
+
+    // Salary visibility listener
+    db.ref('salaryVisibleToReps').on('value', (snapshot) => {
+        salaryVisibleToReps = snapshot.val() !== false;
+        updateVisibilityButton();
         if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
     });
 
@@ -2301,6 +2311,36 @@ function portalLogout() {
     showToast('تم تسجيل الخروج', 'info');
 }
 
+function updateVisibilityButton() {
+    const btn = document.getElementById('salaryVisibilityBtn');
+    const text = document.getElementById('visibilityBtnText');
+    if (btn && text) {
+        if (salaryVisibleToReps) {
+            btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
+            btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            text.textContent = 'إخفاء من المندوب';
+        } else {
+            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+            btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
+            text.textContent = 'إظهار للمندوب';
+        }
+    }
+}
+
+async function toggleSalaryVisibility() {
+    const newValue = !salaryVisibleToReps;
+    try {
+        setSyncStatus('syncing', 'جاري الحفظ...');
+        await db.ref('salaryVisibleToReps').set(newValue);
+        salaryVisibleToReps = newValue;
+        updateVisibilityButton();
+        showToast(newValue ? 'تم إظهار بيانات الراتب للمناديب' : 'تم إخفاء بيانات الراتب عن المناديب', 'success');
+        setSyncStatus('online', 'متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ في الحفظ: ' + e.message, 'error');
+    }
+}
+
 function portalRefresh() {
     if (!currentPortalRep) return;
     const repId = currentPortalRep.id;
@@ -2414,37 +2454,45 @@ function portalRefresh() {
     }
 
     // Update Salary Info in Portal
-    const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
-    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
-    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
-    const sal = {
-        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
-        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
-        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
-        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
-        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
-        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
-        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
-        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
-        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
-        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
-        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
-        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
-        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
-    };
-    const netSalary = calculateNet(sal);
-    const totalDeductions = parseFloat(sal.wallet||0)+parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
-    const totalExtras = parseFloat(sal.extra||0);
+    const salarySection = document.getElementById('portalSalarySection');
+    if (salarySection) {
+        if (salaryVisibleToReps) {
+            salarySection.classList.remove('hidden');
+            const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+            const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+            const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
+            const sal = {
+                orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+                baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+                wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+                multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+                rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+                absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+                noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+                otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+                car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+                fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+                loans: mySalaryData.loans !== undefined ? mySalaryData.loans : 0, // السلف يُدخل يدوياً فقط
+                housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+                extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+            };
+            const netSalary = calculateNet(sal);
+            const totalDeductions = parseFloat(sal.wallet||0)+parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
+            const totalExtras = parseFloat(sal.extra||0);
 
-    const portalSalaryEl = document.getElementById('portalSalary');
-    const portalBaseEl = document.getElementById('portalBaseSalary');
-    const portalDedEl = document.getElementById('portalDeductions');
-    const portalExtEl = document.getElementById('portalExtras');
+            const portalSalaryEl = document.getElementById('portalSalary');
+            const portalBaseEl = document.getElementById('portalBaseSalary');
+            const portalDedEl = document.getElementById('portalDeductions');
+            const portalExtEl = document.getElementById('portalExtras');
 
-    if (portalSalaryEl) portalSalaryEl.textContent = netSalary.toFixed(2) + ' ريال';
-    if (portalBaseEl) portalBaseEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-    if (portalDedEl) portalDedEl.textContent = totalDeductions.toFixed(2) + ' ريال';
-    if (portalExtEl) portalExtEl.textContent = totalExtras.toFixed(2) + ' ريال';
+            if (portalSalaryEl) portalSalaryEl.textContent = netSalary.toFixed(2) + ' ريال';
+            if (portalBaseEl) portalBaseEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+            if (portalDedEl) portalDedEl.textContent = totalDeductions.toFixed(2) + ' ريال';
+            if (portalExtEl) portalExtEl.textContent = totalExtras.toFixed(2) + ' ريال';
+        } else {
+            salarySection.classList.add('hidden');
+        }
+    }
 }
 
 async function portalSaveOrder() {
@@ -2780,7 +2828,7 @@ function getDefaultSalaryData(repId, month, year) {
         otherDeductions: 0,
         car: 0,
         fuel: 0,
-        loans: debt > 0 ? debt : 0,
+        loans: 0,
         housing: 0,
         extra: 0
     };
@@ -2835,7 +2883,7 @@ function renderSalary() {
         const net = calculateNet(s);
         totalSalaries += parseFloat(s.baseSalary || 0);
         totalOrders += parseInt(s.orders || 0);
-        totalLoansDeductions += parseFloat(s.loans || 0);
+        totalLoansDeductions += 0; // السلف يُدخل يدوياً فقط
         totalNetSalaries += net;
 
         return `
@@ -2902,7 +2950,7 @@ function recalcSummary() {
         };
         totalSalaries += parseFloat(s.baseSalary || 0);
         totalOrders += parseInt(s.orders || 0);
-        totalLoansDeductions += parseFloat(s.loans || 0);
+        totalLoansDeductions += 0; // السلف يُدخل يدوياً فقط
         totalNetSalaries += calculateNet(s);
     });
 
