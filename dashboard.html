@@ -33,7 +33,6 @@ const loansRef = db.ref('loans');
 const carsRef = db.ref('cars');
 const bankEntriesRef = db.ref('bankEntries');
 const repPasswordsRef = db.ref('repPasswords');
-const visibilitySettingsRef = db.ref('visibilitySettings');
 </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
@@ -916,7 +915,15 @@ const visibilitySettingsRef = db.ref('visibilitySettings');
                     <button onclick="saveSalaries()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ
                     </button>
-                    <!-- زر استيراد Excel -->
+                    
+
+                    <!-- زر التحكم في ظهور الرواتب -->
+                    <button onclick="openVisibilityModal()" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-2 rounded-xl font-bold transition shadow-lg flex items-center gap-2">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        إدارة الظهور
+                    </button>
+
+<!-- زر استيراد Excel -->
                     <div class="relative">
                         <input type="file" id="excelImport" accept=".xlsx,.xls" onchange="importExcelSalary()" class="hidden">
                         <label for="excelImport" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 cursor-pointer transition">
@@ -935,10 +942,9 @@ const visibilitySettingsRef = db.ref('visibilitySettings');
                             </button>
                         </div>
                     </div>
-                    <button onclick="toggleSalaryVisibility()" id="salaryVisibilityBtn" class="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2 transition" title="إظهار/إخفاء بيانات الراتب في بوابة المندوب">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <span id="visibilityBtnText">إخفاء من المندوب</span>
-                        </button>
+                    <button onclick="printPage('salary')" class="print-btn text-white px-5 py-3 rounded-xl font-bold shadow-lg flex items-center gap-2" title="طباعة الصفحة">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg> طباعة
+                    </button>
                 </div>
             </div>
 
@@ -1165,7 +1171,7 @@ const visibilitySettingsRef = db.ref('visibilitySettings');
                         </div>
 
                 <!-- Salary Status -->
-                <div id="portalSalarySection" class="bg-white rounded-2xl shadow-lg p-6">
+                <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                         راتب الشهر الحالي
@@ -1238,7 +1244,6 @@ let cars = [];
 let bankEntries = [];
 let repPasswords = {};
 let salaries = {};
-let salaryVisibleToReps = true;
 let currentMonth = new Date().getMonth();
 let currentYear = new Date().getFullYear();
 let currentPortalRep = null;
@@ -1313,14 +1318,8 @@ function initFirebaseListeners() {
         if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
     });
 
-    // Salary visibility listener
-    db.ref('salaryVisibleToReps').on('value', (snapshot) => {
-        salaryVisibleToReps = snapshot.val() !== false;
-        updateVisibilityButton();
-        if (document.querySelector('#portalPage.active') && currentPortalRep) portalRefresh();
-    });
-
     setSyncStatus('online', '🟢 متصل بـ Firebase');
+    initVisibilityListener();
 }
 
 // ========== CORE FUNCTIONS ==========
@@ -2311,36 +2310,6 @@ function portalLogout() {
     showToast('تم تسجيل الخروج', 'info');
 }
 
-function updateVisibilityButton() {
-    const btn = document.getElementById('salaryVisibilityBtn');
-    const text = document.getElementById('visibilityBtnText');
-    if (btn && text) {
-        if (salaryVisibleToReps) {
-            btn.classList.remove('bg-gray-600', 'hover:bg-gray-700');
-            btn.classList.add('bg-purple-600', 'hover:bg-purple-700');
-            text.textContent = 'إخفاء من المندوب';
-        } else {
-            btn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
-            btn.classList.add('bg-gray-600', 'hover:bg-gray-700');
-            text.textContent = 'إظهار للمندوب';
-        }
-    }
-}
-
-async function toggleSalaryVisibility() {
-    const newValue = !salaryVisibleToReps;
-    try {
-        setSyncStatus('syncing', 'جاري الحفظ...');
-        await db.ref('salaryVisibleToReps').set(newValue);
-        salaryVisibleToReps = newValue;
-        updateVisibilityButton();
-        showToast(newValue ? 'تم إظهار بيانات الراتب للمناديب' : 'تم إخفاء بيانات الراتب عن المناديب', 'success');
-        setSyncStatus('online', 'متصل بـ Firebase');
-    } catch(e) {
-        showToast('خطأ في الحفظ: ' + e.message, 'error');
-    }
-}
-
 function portalRefresh() {
     if (!currentPortalRep) return;
     const repId = currentPortalRep.id;
@@ -2454,45 +2423,37 @@ function portalRefresh() {
     }
 
     // Update Salary Info in Portal
-    const salarySection = document.getElementById('portalSalarySection');
-    if (salarySection) {
-        if (salaryVisibleToReps) {
-            salarySection.classList.remove('hidden');
-            const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
-            const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
-            const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
-            const sal = {
-                orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
-                baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
-                wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
-                multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
-                rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
-                absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
-                noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
-                otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
-                car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
-                fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
-                loans: mySalaryData.loans !== undefined ? mySalaryData.loans : 0, // السلف يُدخل يدوياً فقط
-                housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
-                extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
-            };
-            const netSalary = calculateNet(sal);
-            const totalDeductions = parseFloat(sal.wallet||0)+parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
-            const totalExtras = parseFloat(sal.extra||0);
+    const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
+    const sal = {
+        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
+        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+    };
+    const netSalary = calculateNet(sal);
+    const totalDeductions = parseFloat(sal.wallet||0)+parseFloat(sal.multiOrders||0)+parseFloat(sal.rejected||0)+parseFloat(sal.absence||0)+parseFloat(sal.noShow||0)+parseFloat(sal.otherDeductions||0)+parseFloat(sal.car||0)+parseFloat(sal.fuel||0)+parseFloat(sal.loans||0)+parseFloat(sal.housing||0);
+    const totalExtras = parseFloat(sal.extra||0);
 
-            const portalSalaryEl = document.getElementById('portalSalary');
-            const portalBaseEl = document.getElementById('portalBaseSalary');
-            const portalDedEl = document.getElementById('portalDeductions');
-            const portalExtEl = document.getElementById('portalExtras');
+    const portalSalaryEl = document.getElementById('portalSalary');
+    const portalBaseEl = document.getElementById('portalBaseSalary');
+    const portalDedEl = document.getElementById('portalDeductions');
+    const portalExtEl = document.getElementById('portalExtras');
 
-            if (portalSalaryEl) portalSalaryEl.textContent = netSalary.toFixed(2) + ' ريال';
-            if (portalBaseEl) portalBaseEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-            if (portalDedEl) portalDedEl.textContent = totalDeductions.toFixed(2) + ' ريال';
-            if (portalExtEl) portalExtEl.textContent = totalExtras.toFixed(2) + ' ريال';
-        } else {
-            salarySection.classList.add('hidden');
-        }
-    }
+    if (portalSalaryEl) portalSalaryEl.textContent = netSalary.toFixed(2) + ' ريال';
+    if (portalBaseEl) portalBaseEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+    if (portalDedEl) portalDedEl.textContent = totalDeductions.toFixed(2) + ' ريال';
+    if (portalExtEl) portalExtEl.textContent = totalExtras.toFixed(2) + ' ريال';
 }
 
 async function portalSaveOrder() {
@@ -2786,6 +2747,261 @@ function printPage(page) {
     }, 100);
 }
 
+
+
+
+// ========== SALARY VISIBILITY MANAGEMENT ==========
+let salaryVisibility = {}; // Format: { "2026-05": { "REP001": true, "REP002": false } }
+
+// Initialize visibility listener
+function initVisibilityListener() {
+    const visibilityRef = db.ref('salaryVisibility');
+    visibilityRef.on('value', (snapshot) => {
+        salaryVisibility = snapshot.val() || {};
+    });
+}
+
+function openVisibilityModal() {
+    document.getElementById('visibilityModal').classList.add('active');
+    // Set current month/year as default
+    const now = new Date();
+    const vm = document.getElementById('visMonth');
+    const vy = document.getElementById('visYear');
+    if (vm) vm.value = now.getMonth();
+    if (vy) vy.value = now.getFullYear();
+    renderVisibilityTable();
+}
+
+function closeVisibilityModal() {
+    document.getElementById('visibilityModal').classList.remove('active');
+}
+
+function getVisibilityStatus(repId, monthKey) {
+    // If no visibility data exists, default to VISIBLE (true)
+    if (!salaryVisibility[monthKey]) return true;
+    if (salaryVisibility[monthKey][repId] === undefined) return true;
+    return salaryVisibility[monthKey][repId];
+}
+
+function renderVisibilityTable() {
+    const month = document.getElementById('visMonth').value;
+    const year = document.getElementById('visYear').value;
+    const tbody = document.getElementById('visibilityTableBody');
+    const emptyDiv = document.getElementById('visibilityEmpty');
+
+    if (reps.length === 0) {
+        tbody.innerHTML = '';
+        emptyDiv.classList.remove('hidden');
+        emptyDiv.querySelector('p').textContent = 'لا يوجد مناديب مسجلين';
+        return;
+    }
+
+    let rows = [];
+
+    if (month === 'all' && year === 'all') {
+        // Show all reps with "all months" indicator
+        reps.forEach((rep, idx) => {
+            const allVisible = isRepVisibleAllMonths(rep.id);
+            rows.push({
+                idx: idx + 1,
+                repId: rep.id,
+                repName: rep.name,
+                period: 'جميع الأشهر',
+                visible: allVisible,
+                isAll: true
+            });
+        });
+    } else if (month === 'all') {
+        // Show all months for selected year
+        for (let m = 0; m < 12; m++) {
+            const monthKey = `${year}-${String(m + 1).padStart(2, '0')}`;
+            const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+            reps.forEach((rep, idx) => {
+                const visible = getVisibilityStatus(rep.id, monthKey);
+                rows.push({
+                    idx: idx + 1,
+                    repId: rep.id,
+                    repName: rep.name,
+                    period: `${monthNames[m]} ${year}`,
+                    visible: visible,
+                    monthKey: monthKey,
+                    isAll: false
+                });
+            });
+        }
+    } else if (year === 'all') {
+        // Show selected month for all years
+        const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+        [2026, 2027, 2028, 2029].forEach(y => {
+            const monthKey = `${y}-${String(parseInt(month) + 1).padStart(2, '0')}`;
+            reps.forEach((rep, idx) => {
+                const visible = getVisibilityStatus(rep.id, monthKey);
+                rows.push({
+                    idx: idx + 1,
+                    repId: rep.id,
+                    repName: rep.name,
+                    period: `${monthNames[month]} ${y}`,
+                    visible: visible,
+                    monthKey: monthKey,
+                    isAll: false
+                });
+            });
+        });
+    } else {
+        // Specific month and year
+        const monthKey = `${year}-${String(parseInt(month) + 1).padStart(2, '0')}`;
+        const monthNames = ['يناير','فبراير','مارس','إبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+        reps.forEach((rep, idx) => {
+            const visible = getVisibilityStatus(rep.id, monthKey);
+            rows.push({
+                idx: idx + 1,
+                repId: rep.id,
+                repName: rep.name,
+                period: `${monthNames[month]} ${year}`,
+                visible: visible,
+                monthKey: monthKey,
+                isAll: false
+            });
+        });
+    }
+
+    if (rows.length === 0) {
+        tbody.innerHTML = '';
+        emptyDiv.classList.remove('hidden');
+        return;
+    }
+
+    emptyDiv.classList.add('hidden');
+    tbody.innerHTML = rows.map(row => {
+        const statusBadge = row.visible 
+            ? '<span class="px-2 py-1 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">ظاهر</span>'
+            : '<span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700 font-bold">مخفي</span>';
+
+        const toggleBtn = row.isAll
+            ? `<button onclick="toggleRepAllMonths('${row.repId}')" class="px-3 py-1 rounded-lg ${row.visible ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'} transition text-sm font-bold">${row.visible ? 'إخفاء' : 'إظهار'}</button>`
+            : `<button onclick="toggleVisibility('${row.repId}', '${row.monthKey}')" class="px-3 py-1 rounded-lg ${row.visible ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'} transition text-sm font-bold">${row.visible ? 'إخفاء' : 'إظهار'}</button>`;
+
+        return `
+            <tr class="border-b hover:bg-slate-50 transition">
+                <td class="px-3 py-3 text-slate-500 font-bold">${row.idx}</td>
+                <td class="px-3 py-3 font-bold text-slate-800">${row.repName}</td>
+                <td class="px-3 py-3 text-slate-600 text-sm">${row.period}</td>
+                <td class="px-3 py-3">${statusBadge}</td>
+                <td class="px-3 py-3">${toggleBtn}</td>
+            </tr>`;
+    }).join('');
+}
+
+function isRepVisibleAllMonths(repId) {
+    // Check if rep is visible in all months that have salary data
+    const allKeys = Object.keys(salaryVisibility);
+    if (allKeys.length === 0) return true;
+
+    for (const key of allKeys) {
+        if (salaryVisibility[key] && salaryVisibility[key][repId] === false) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function toggleVisibility(repId, monthKey) {
+    if (!salaryVisibility[monthKey]) salaryVisibility[monthKey] = {};
+    const current = getVisibilityStatus(repId, monthKey);
+    salaryVisibility[monthKey][repId] = !current;
+    renderVisibilityTable();
+}
+
+function toggleRepAllMonths(repId) {
+    const currentAll = isRepVisibleAllMonths(repId);
+    const newValue = !currentAll;
+
+    // Toggle for all existing month keys
+    Object.keys(salaryVisibility).forEach(key => {
+        if (!salaryVisibility[key]) salaryVisibility[key] = {};
+        salaryVisibility[key][repId] = newValue;
+    });
+
+    // Also set for current and next few months to be safe
+    const now = new Date();
+    for (let y = 2026; y <= 2029; y++) {
+        for (let m = 1; m <= 12; m++) {
+            const key = `${y}-${String(m).padStart(2, '0')}`;
+            if (!salaryVisibility[key]) salaryVisibility[key] = {};
+            salaryVisibility[key][repId] = newValue;
+        }
+    }
+
+    renderVisibilityTable();
+}
+
+function setAllVisibility(visible) {
+    const month = document.getElementById('visMonth').value;
+    const year = document.getElementById('visYear').value;
+
+    if (month === 'all' && year === 'all') {
+        // Set for ALL months across ALL years
+        for (let y = 2026; y <= 2029; y++) {
+            for (let m = 1; m <= 12; m++) {
+                const key = `${y}-${String(m).padStart(2, '0')}`;
+                if (!salaryVisibility[key]) salaryVisibility[key] = {};
+                reps.forEach(rep => {
+                    salaryVisibility[key][rep.id] = visible;
+                });
+            }
+        }
+    } else if (month === 'all') {
+        // Set for ALL months in selected year
+        for (let m = 1; m <= 12; m++) {
+            const key = `${year}-${String(m).padStart(2, '0')}`;
+            if (!salaryVisibility[key]) salaryVisibility[key] = {};
+            reps.forEach(rep => {
+                salaryVisibility[key][rep.id] = visible;
+            });
+        }
+    } else if (year === 'all') {
+        // Set for selected month across ALL years
+        [2026, 2027, 2028, 2029].forEach(y => {
+            const key = `${y}-${String(parseInt(month) + 1).padStart(2, '0')}`;
+            if (!salaryVisibility[key]) salaryVisibility[key] = {};
+            reps.forEach(rep => {
+                salaryVisibility[key][rep.id] = visible;
+            });
+        });
+    } else {
+        // Set for specific month/year
+        const key = `${year}-${String(parseInt(month) + 1).padStart(2, '0')}`;
+        if (!salaryVisibility[key]) salaryVisibility[key] = {};
+        reps.forEach(rep => {
+            salaryVisibility[key][rep.id] = visible;
+        });
+    }
+
+    renderVisibilityTable();
+    showToast(visible ? 'تم إظهار الرواتب للجميع' : 'تم إخفاء الرواتب عن الجميع', 'success');
+}
+
+async function saveVisibility() {
+    try {
+        setSyncStatus('syncing', '🔄 جاري حفظ إعدادات الظهور...');
+        const visibilityRef = db.ref('salaryVisibility');
+        await visibilityRef.set(salaryVisibility);
+        closeVisibilityModal();
+        showToast('تم حفظ إعدادات الظهور بنجاح', 'success');
+        setSyncStatus('online', '🟢 متصل بـ Firebase');
+    } catch(e) {
+        showToast('خطأ في الحفظ: ' + e.message, 'error');
+        setSyncStatus('offline', '🔴 غير متصل');
+    }
+}
+
+// Close modal when clicking outside
+window.addEventListener('click', function(e) {
+    const modal = document.getElementById('visibilityModal');
+    if (e.target === modal) {
+        closeVisibilityModal();
+    }
+});
 
 // ========== SALARY MANAGEMENT ==========
 
@@ -3229,5 +3445,91 @@ document.addEventListener('DOMContentLoaded', () => {
     showPage('home');
 });
 </script>
+
+
+<!-- نافذة التحكم في ظهور الرواتب -->
+<div id="visibilityModal" class="modal">
+    <div class="modal-content shadow-2xl" style="max-width: 700px; width: 95%;">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                التحكم في ظهور الرواتب للمناديب
+            </h3>
+            <button onclick="closeVisibilityModal()" class="text-slate-400 hover:text-slate-600 text-xl">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
+
+        <div class="space-y-4">
+            <!-- Month/Year Selector -->
+            <div class="bg-slate-50 rounded-xl p-4">
+                <label class="block font-bold text-slate-700 mb-2">اختر الشهر والسنة</label>
+                <div class="flex gap-3">
+                    <select id="visMonth" onchange="renderVisibilityTable()" class="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                        <option value="all">جميع الأشهر</option>
+                        <option value="0">يناير</option>
+                        <option value="1">فبراير</option>
+                        <option value="2">مارس</option>
+                        <option value="3">إبريل</option>
+                        <option value="4">مايو</option>
+                        <option value="5">يونيو</option>
+                        <option value="6">يوليو</option>
+                        <option value="7">أغسطس</option>
+                        <option value="8">سبتمبر</option>
+                        <option value="9">أكتوبر</option>
+                        <option value="10">نوفمبر</option>
+                        <option value="11">ديسمبر</option>
+                    </select>
+                    <select id="visYear" onchange="renderVisibilityTable()" class="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
+                        <option value="all">جميع السنوات</option>
+                        <option value="2026">2026</option>
+                        <option value="2027">2027</option>
+                        <option value="2028">2028</option>
+                        <option value="2029">2029</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="flex gap-3">
+                <button onclick="setAllVisibility(true)" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl font-bold transition text-sm">
+                    إظهار للجميع
+                </button>
+                <button onclick="setAllVisibility(false)" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-xl font-bold transition text-sm">
+                    إخفاء عن الجميع
+                </button>
+            </div>
+
+            <!-- Visibility Table -->
+            <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="w-full text-center">
+                    <thead class="bg-slate-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-3 font-bold text-slate-700">#</th>
+                            <th class="px-3 py-3 font-bold text-slate-700">المندوب</th>
+                            <th class="px-3 py-3 font-bold text-slate-700">الشهر/السنة</th>
+                            <th class="px-3 py-3 font-bold text-slate-700">الحالة</th>
+                            <th class="px-3 py-3 font-bold text-slate-700">تبديل</th>
+                        </tr>
+                    </thead>
+                    <tbody id="visibilityTableBody"></tbody>
+                </table>
+            </div>
+
+            <div id="visibilityEmpty" class="hidden text-center py-8 text-slate-400">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-slate-300"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <p>لا يوجد بيانات رواتب لهذا الشهر</p>
+            </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-200 flex gap-3">
+            <button onclick="saveVisibility()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> حفظ الإعدادات
+            </button>
+            <button onclick="closeVisibilityModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 py-3 rounded-xl font-bold transition">إلغاء</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
