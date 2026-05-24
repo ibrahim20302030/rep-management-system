@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة المندوب - Firebase</title>
+    <title id="pageTitle">بوابة المندوب - Firebase</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script>
-// Firebase Configuration - Embedded directly
 const firebaseConfig = {
   apiKey: "AIzaSyCmZ2qcig32wShzBtphnYi5Xl0LJm1p-4g",
   authDomain: "rep-management-system.firebaseapp.com",
@@ -19,12 +17,8 @@ const firebaseConfig = {
   messagingSenderId: "416275066968",
   appId: "1:416275066968:web:ba70ac29799f0434179a2d"
 };
-
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-
-// Database references
 const repsRef = db.ref('reps');
 const ordersRef = db.ref('orders');
 const loansRef = db.ref('loans');
@@ -50,38 +44,34 @@ const repPasswordsRef = db.ref('repPasswords');
         .sync-status.online { background: #10b981; color: white; }
         .sync-status.offline { background: #f59e0b; color: white; }
         .sync-status.syncing { background: #3b82f6; color: white; }
-
-        .modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 9998;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(4px);
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9998; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+        .modal.active { display: flex; animation: fadeIn 0.3s ease; }
+        .modal-content { background: white; border-radius: 20px; padding: 30px; width: 90%; max-width: 500px; animation: fadeIn 0.3s ease; max-height: 80vh; overflow-y: auto; }
+        .lang-switcher {
+            position: fixed; top: 20px; left: 20px; z-index: 10000;
+            display: flex; gap: 4px; background: white; border-radius: 12px;
+            padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 2px solid #e2e8f0;
         }
-        .modal.active {
-            display: flex;
-            animation: fadeIn 0.3s ease;
+        .lang-btn {
+            padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 14px;
+            cursor: pointer; transition: all 0.3s; border: none; background: transparent; color: #64748b;
         }
-        .modal-content {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            width: 90%;
-            max-width: 500px;
-            animation: fadeIn 0.3s ease;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
+        .lang-btn:hover { background: #f1f5f9; }
+        .lang-btn.active { background: #3b82f6; color: white; box-shadow: 0 2px 8px rgba(59,130,246,0.3); }
+        html[dir="ltr"] .lang-switcher { right: 20px; left: auto; }
+        html[dir="ltr"] .sync-status { right: 20px; left: auto; }
     </style>
 </head>
 <body>
 
+<!-- Language Switcher -->
+<div class="lang-switcher" id="langSwitcher">
+    <button class="lang-btn active" data-lang="ar" onclick="switchLanguage('ar')">العربية</button>
+    <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')">English</button>
+</div>
+
 <!-- Sync Status Indicator -->
-<div id="syncStatus" class="sync-status online">🟢 متصل بـ Firebase</div>
+<div id="syncStatus" class="sync-status online" data-i18n="syncOnline">🟢 متصل بـ Firebase</div>
 
 <!-- LOGIN PAGE -->
 <div id="portalLogin" class="min-h-screen flex items-center justify-center p-4">
@@ -90,38 +80,35 @@ const repPasswordsRef = db.ref('repPasswords');
             <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
-            <h3 class="text-2xl font-bold text-slate-800">بوابة المندوب</h3>
-            <p class="text-slate-500 text-sm">شركة هلا توصيل للخدمات اللوجيستية </p>
+            <h3 class="text-2xl font-bold text-slate-800" data-i18n="portalTitle">بوابة المندوب</h3>
+            <p class="text-slate-500 text-sm" data-i18n="companyName">شركة هلا توصيل للخدمات اللوجيستية </p>
         </div>
         <div class="space-y-4">
             <div>
-                <label class="block font-bold text-slate-700 mb-2">الرقم التعريفي (ID)</label>
+                <label class="block font-bold text-slate-700 mb-2" data-i18n="idLabel">الرقم التعريفي (ID)</label>
                 <input type="text" id="portalLoginId" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="REP001" onkeypress="if(event.key==='Enter')portalLogin()">
             </div>
             <div>
-                <label class="block font-bold text-slate-700 mb-2">كلمة المرور</label>
+                <label class="block font-bold text-slate-700 mb-2" data-i18n="passwordLabel">كلمة المرور</label>
                 <input type="password" id="portalLoginPassword" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="••••••" onkeypress="if(event.key==='Enter')portalLogin()">
             </div>
-            <button onclick="portalLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-6">
+            <button onclick="portalLogin()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
-                تسجيل الدخول
+                <span data-i18n="loginBtn">تسجيل الدخول</span>
             </button>
         </div>
         <div class="mt-6 text-center">
-            <p class="text-slate-400 text-sm">للحصول على كلمة المرور، تواصل مع الإدارة</p>
+            <p class="text-slate-400 text-sm" data-i18n="contactAdmin">للحصول على كلمة المرور، تواصل مع الإدارة</p>
         </div>
     </div>
 </div>
 
-<!-- DASHBOARD (Hidden initially) -->
+<!-- DASHBOARD -->
 <div id="portalDashboard" class="hidden min-h-screen">
-    <!-- Header -->
     <div class="bg-white border-b border-slate-200 p-4 sticky top-0 z-50">
         <div class="max-w-5xl mx-auto flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xl font-bold text-white" id="portalAvatar">
-                    أ
-                </div>
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xl font-bold text-white" id="portalAvatar">أ</div>
                 <div>
                     <h3 class="font-bold text-lg text-slate-800" id="portalName">اسم المندوب</h3>
                     <p class="text-slate-500 text-xs" id="portalId">REP001</p>
@@ -129,70 +116,64 @@ const repPasswordsRef = db.ref('repPasswords');
             </div>
             <button onclick="portalLogout()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl transition text-sm flex items-center gap-2">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
-                خروج
+                <span data-i18n="logout">خروج</span>
             </button>
         </div>
     </div>
 
     <div class="max-w-5xl mx-auto p-4 space-y-6 fade-in">
-        <!-- Quick Stats -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-4 text-center shadow-lg">
                 <div class="text-3xl font-bold" id="portalOrdersToday">0</div>
-                <div class="text-sm text-blue-100 mt-1">طلبات اليوم</div>
+                <div class="text-sm text-blue-100 mt-1" data-i18n="ordersToday">طلبات اليوم</div>
             </div>
             <div class="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-2xl p-4 text-center shadow-lg">
                 <div class="text-3xl font-bold" id="portalOrdersMonth">0</div>
-                <div class="text-sm text-purple-100 mt-1">طلبات الشهر</div>
+                <div class="text-sm text-purple-100 mt-1" data-i18n="ordersMonth">طلبات الشهر</div>
             </div>
             <div class="bg-gradient-to-br from-slate-700 to-slate-800 text-white rounded-2xl p-4 text-center shadow-lg cursor-pointer hover:scale-105 transition-transform" onclick="showDebtDetails()">
                 <div class="text-3xl font-bold" id="portalDebt">0</div>
-                <div class="text-sm text-slate-300 mt-1">السلف <span class="text-xs opacity-60">(اضغط للتفاصيل)</span></div>
+                <div class="text-sm text-slate-300 mt-1"><span data-i18n="loansLabel">السلف</span> <span class="text-xs opacity-60" data-i18n="clickDetails">(اضغط للتفاصيل)</span></div>
             </div>
             <div class="bg-gradient-to-br from-yellow-500 to-orange-600 text-white rounded-2xl p-4 text-center shadow-lg">
                 <div class="text-3xl font-bold" id="portalRank">-</div>
-                <div class="text-sm text-yellow-100 mt-1">ترتيبك</div>
+                <div class="text-sm text-yellow-100 mt-1" data-i18n="yourRank">ترتيبك</div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Daily Orders Input -->
             <div class="bg-white rounded-2xl shadow-lg p-6">
                 <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M9 12h6"/><path d="M9 16h6"/><path d="M9 8h6"/></svg>
-                    تسجيل طلبات اليوم
+                    <span data-i18n="registerOrders">تسجيل طلبات اليوم</span>
                 </h3>
                 <div class="space-y-4">
                     <div>
-                        <label class="block font-bold text-slate-700 mb-2">التاريخ</label>
+                        <label class="block font-bold text-slate-700 mb-2" data-i18n="dateLabel">التاريخ</label>
                         <input type="date" id="portalOrderDate" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
                     </div>
                     <div>
-                        <label class="block font-bold text-slate-700 mb-2">عدد الطلبات</label>
+                        <label class="block font-bold text-slate-700 mb-2" data-i18n="orderCountLabel">عدد الطلبات</label>
                         <input type="number" id="portalOrderCount" class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl transition font-mono text-lg text-center focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" placeholder="0" min="0" onkeypress="if(event.key==='Enter')portalSaveOrder()">
                     </div>
                     <button onclick="portalSaveOrder()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                        حفظ الطلبات
+                        <span data-i18n="saveOrdersBtn">حفظ الطلبات</span>
                     </button>
                 </div>
-
-                <!-- Recent Orders -->
                 <div class="mt-6">
-                    <h4 class="font-bold text-slate-700 mb-3">طلباتك الأخيرة</h4>
+                    <h4 class="font-bold text-slate-700 mb-3" data-i18n="recentOrders">طلباتك الأخيرة</h4>
                     <div id="portalRecentOrders" class="space-y-2 max-h-48 overflow-y-auto">
-                        <div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة</div>
+                        <div class="text-center text-slate-400 py-4" data-i18n="noOrders">لا توجد طلبات مسجلة</div>
                     </div>
                 </div>
             </div>
 
-            <!-- My Stats -->
             <div class="space-y-6">
-                <!-- Monthly Progress -->
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-                        تقدمك الشهري
+                        <span data-i18n="monthlyProgress">تقدمك الشهري</span>
                     </h3>
                     <div class="flex items-center justify-center mb-4">
                         <div class="relative">
@@ -203,83 +184,79 @@ const repPasswordsRef = db.ref('repPasswords');
                             <div class="absolute inset-0 flex items-center justify-center">
                                 <div class="text-center">
                                     <div class="text-2xl font-bold text-slate-800" id="portalProgressPercent">0%</div>
-                                    <div class="text-xs text-slate-500">من الهدف</div>
+                                    <div class="text-xs text-slate-500" data-i18n="ofGoal">من الهدف</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="flex justify-between text-sm">
-                        <span class="text-slate-600">طلباتك: <span class="font-bold text-slate-800" id="portalMyOrders">0</span></span>
-                        <span class="text-slate-600">هدف الشهر: <span class="font-bold text-slate-800">500</span></span>
+                        <span class="text-slate-600"><span data-i18n="yourOrders">طلباتك:</span> <span class="font-bold text-slate-800" id="portalMyOrders">0</span></span>
+                        <span class="text-slate-600"><span data-i18n="monthGoal">هدف الشهر:</span> <span class="font-bold text-slate-800">500</span></span>
                     </div>
                 </div>
 
-                <!-- Iqama Status -->
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                        حالة الإقامة
+                        <span data-i18n="iqamaStatus">حالة الإقامة</span>
                     </h3>
                     <div class="space-y-3">
                         <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                            <span class="text-slate-600">رقم الإقامة</span>
+                            <span class="text-slate-600" data-i18n="iqamaNumber">رقم الإقامة</span>
                             <span class="font-bold font-mono text-slate-800" id="portalIqama">-</span>
                         </div>
                         <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                            <span class="text-slate-600">تاريخ الانتهاء</span>
+                            <span class="text-slate-600" data-i18n="expiryDate">تاريخ الانتهاء</span>
                             <span class="font-bold text-slate-800" id="portalExpiry">-</span>
                         </div>
                         <div class="flex justify-between p-3 bg-slate-50 rounded-xl">
-                            <span class="text-slate-600">الأيام المتبقية</span>
+                            <span class="text-slate-600" data-i18n="daysLeft">الأيام المتبقية</span>
                             <span class="font-bold" id="portalDaysLeft">-</span>
                         </div>
                         <div id="portalIqamaAlert" class="hidden p-3 rounded-xl text-center font-bold text-sm"></div>
                     </div>
                 </div>
 
-                <!-- Car Status -->
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
-                        حالة السيارة
+                        <span data-i18n="carStatus">حالة السيارة</span>
                     </h3>
                     <div id="portalCarInfo" class="space-y-3">
-                        <div class="text-center text-slate-400 py-4">لا توجد سيارة مسجلة</div>
+                        <div class="text-center text-slate-400 py-4" data-i18n="noCar">لا توجد سيارة مسجلة</div>
                     </div>
                 </div>
 
-                <!-- Achievements -->
                 <div class="bg-white rounded-2xl shadow-lg p-6">
                     <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
-                        إنجازاتك
+                        <span data-i18n="achievements">إنجازاتك</span>
                     </h3>
                     <div id="portalAchievements" class="flex flex-wrap gap-2">
-                        <span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>
+                        <span class="text-slate-400 text-sm" data-i18n="recordOrders">سجل طلباتك لتظهر الإنجازات</span>
                     </div>
                 </div>
 
-                <!-- Full Salary Details -->
                 <div class="bg-white rounded-2xl shadow-lg p-6 mt-6">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                            تفاصيل الراتب الكاملة
+                            <span data-i18n="salaryDetails">تفاصيل الراتب الكاملة</span>
                         </h3>
                         <div class="flex items-center gap-2">
                             <select id="portalSalaryMonth" onchange="portalRefreshSalaryOnly()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
-                                <option value="0">يناير</option>
-                                <option value="1">فبراير</option>
-                                <option value="2">مارس</option>
-                                <option value="3">إبريل</option>
-                                <option value="4">مايو</option>
-                                <option value="5">يونيو</option>
-                                <option value="6">يوليو</option>
-                                <option value="7">أغسطس</option>
-                                <option value="8">سبتمبر</option>
-                                <option value="9">أكتوبر</option>
-                                <option value="10">نوفمبر</option>
-                                <option value="11">ديسمبر</option>
+                                <option value="0" data-i18n="jan">يناير</option>
+                                <option value="1" data-i18n="feb">فبراير</option>
+                                <option value="2" data-i18n="mar">مارس</option>
+                                <option value="3" data-i18n="apr">إبريل</option>
+                                <option value="4" data-i18n="may">مايو</option>
+                                <option value="5" data-i18n="jun">يونيو</option>
+                                <option value="6" data-i18n="jul">يوليو</option>
+                                <option value="7" data-i18n="aug">أغسطس</option>
+                                <option value="8" data-i18n="sep">سبتمبر</option>
+                                <option value="9" data-i18n="oct">أكتوبر</option>
+                                <option value="10" data-i18n="nov">نوفمبر</option>
+                                <option value="11" data-i18n="dec">ديسمبر</option>
                             </select>
                             <select id="portalSalaryYear" onchange="portalRefreshSalaryOnly()" class="px-3 py-2 border-2 border-slate-200 rounded-xl transition bg-white text-sm font-bold">
                                 <option value="2026">2026</option>
@@ -293,25 +270,25 @@ const repPasswordsRef = db.ref('repPasswords');
                         <table class="w-full text-center">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th class="px-3 py-3 font-bold text-slate-700">البيان</th>
-                                    <th class="px-3 py-3 font-bold text-slate-700">القيمة</th>
+                                    <th class="px-3 py-3 font-bold text-slate-700" data-i18n="item">البيان</th>
+                                    <th class="px-3 py-3 font-bold text-slate-700" data-i18n="value">القيمة</th>
                                 </tr>
                             </thead>
                             <tbody id="portalSalaryDetails">
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">الطلبات</td><td class="px-3 py-3 font-bold" id="portalSalOrders">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إجمالي الراتب</td><td class="px-3 py-3 font-bold text-blue-600" id="portalSalBase">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">محفظة</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalWallet">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">طلبات متعددة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalMulti">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">مرفوضة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalRejected">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">غياب</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalAbsence">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">عدم حضور</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalNoShow">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">خصومات أخرى</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalOther">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سيارة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalCar">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">بنزين</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalFuel">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سلف</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalLoans">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">سكن</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalHousing">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">إضافي</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalExtra">0</td></tr>
-                                <tr class="bg-emerald-50"><td class="px-3 py-3 font-bold text-emerald-800">صافي الراتب</td><td class="px-3 py-3 font-bold text-emerald-600 text-lg" id="portalSalNet">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="orders">الطلبات</td><td class="px-3 py-3 font-bold" id="portalSalOrders">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="totalSalary">إجمالي الراتب</td><td class="px-3 py-3 font-bold text-blue-600" id="portalSalBase">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="wallet">محفظة</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalWallet">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="multiOrders">طلبات متعددة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalMulti">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="rejected">مرفوضة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalRejected">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="absence">غياب</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalAbsence">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="noShow">عدم حضور</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalNoShow">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="otherDeductions">خصومات أخرى</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalOther">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="car">سيارة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalCar">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="fuel">بنزين</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalFuel">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="loans">سلف</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalLoans">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="housing">سكن</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalHousing">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600" data-i18n="extra">إضافي</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalExtra">0</td></tr>
+                                <tr class="bg-emerald-50"><td class="px-3 py-3 font-bold text-emerald-800" data-i18n="netSalary">صافي الراتب</td><td class="px-3 py-3 font-bold text-emerald-600 text-lg" id="portalSalNet">0</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -320,10 +297,119 @@ const repPasswordsRef = db.ref('repPasswords');
         </div>
     </div>
 </div>
-                
-
 
 <script>
+// ========== TRANSLATIONS ==========
+const translations = {
+    ar: {
+        pageTitle: "بوابة المندوب - Firebase", syncOnline: "🟢 متصل بـ Firebase", syncOffline: "🟠 غير متصل", syncSyncing: "🔄 جاري التحميل...",
+        portalTitle: "بوابة المندوب", companyName: "شركة هلا توصيل للخدمات اللوجيستية",
+        idLabel: "الرقم التعريفي (ID)", passwordLabel: "كلمة المرور", loginBtn: "تسجيل الدخول",
+        contactAdmin: "للحصول على كلمة المرور، تواصل مع الإدارة", logout: "خروج",
+        ordersToday: "طلبات اليوم", ordersMonth: "طلبات الشهر", loansLabel: "السلف",
+        clickDetails: "(اضغط للتفاصيل)", yourRank: "ترتيبك",
+        registerOrders: "تسجيل طلبات اليوم", dateLabel: "التاريخ", orderCountLabel: "عدد الطلبات",
+        saveOrdersBtn: "حفظ الطلبات", recentOrders: "طلباتك الأخيرة", noOrders: "لا توجد طلبات مسجلة",
+        monthlyProgress: "تقدمك الشهري", ofGoal: "من الهدف", yourOrders: "طلباتك:", monthGoal: "هدف الشهر:",
+        iqamaStatus: "حالة الإقامة", iqamaNumber: "رقم الإقامة", expiryDate: "تاريخ الانتهاء", daysLeft: "الأيام المتبقية",
+        iqamaExpired: "⚠️ الإقامة منتهية! تواصل مع الإدارة فوراً", iqamaExpiring: "⏰ الإقامة تنتهي قريباً! تجديد عاجل",
+        carStatus: "حالة السيارة", noCar: "لا توجد سيارة مسجلة",
+        carType: "السيارة", plateNumber: "رقم اللوحة", rentalOffice: "مكتب التأجير",
+        monthlyRent: "الإيجار الشهري", returnDate: "تاريخ التسليم", overdue: "متأخرة!", days: "يوم",
+        achievements: "إنجازاتك", recordOrders: "سجل طلباتك لتظهر الإنجازات",
+        achievement500: "500+ طلب", achievement300: "300+ طلب", achievement100: "100+ طلب",
+        achievement20: "20+ اليوم", achievementRank1: "المركز الأول", achievementTop3: "Top 3", achievementDebtFree: "خالي من الديون",
+        salaryDetails: "تفاصيل الراتب الكاملة", item: "البيان", value: "القيمة",
+        orders: "الطلبات", totalSalary: "إجمالي الراتب", wallet: "محفظة", multiOrders: "طلبات متعددة",
+        rejected: "مرفوضة", absence: "غياب", noShow: "عدم حضور", otherDeductions: "خصومات أخرى",
+        car: "سيارة", fuel: "بنزين", loans: "سلف", housing: "سكن", extra: "إضافي", netSalary: "صافي الراتب",
+        salaryHidden: "الراتب غير متاح حالياً", salaryHiddenMsg: "تواصل مع الإدارة للاستفسار.",
+        debtDetails: "تفاصيل السلف والسداد", currentBalance: "الرصيد الحالي:",
+        noLoans: "لا توجد سلف مسجلة", debtFree: "أنت خالي من الديون!",
+        loanType: "سلفة", paymentType: "سداد", date: "التاريخ", movement: "الحركة",
+        amount: "المبلغ", balanceAfter: "الرصيد بعد", notes: "ملاحظات",
+        enterId: "أدخل الرقم التعريفي", enterPassword: "أدخل كلمة المرور",
+        repNotFound: "المندوب غير موجود", noPasswordSet: "لم يتم تعيين كلمة مرور لهذا المندوب. تواصل مع الإدارة.",
+        wrongPassword: "كلمة المرور غير صحيحة", welcome: "مرحباً", loginSuccess: "تم تسجيل الدخول بنجاح",
+        logoutSuccess: "تم تسجيل الخروج", selectDate: "اختر التاريخ", enterValidNumber: "أدخل عدد صحيح",
+        enterOrderCount: "أدخل عدد الطلبات", saveSuccess: "تم حفظ", ordersLabel: "طلب",
+        successfully: "بنجاح!", error: "خطأ:", noRepsData: "لا توجد بيانات مناديب مسجلة",
+        addRepsFirst: "يجب إضافة المناديب وكلمات المرور من خلال لوحة الإدارة أولاً", riyal: "ريال",
+        jan: "يناير", feb: "فبراير", mar: "مارس", apr: "إبريل",
+        may: "مايو", jun: "يونيو", jul: "يوليو", aug: "أغسطس",
+        sep: "سبتمبر", oct: "أكتوبر", nov: "نوفمبر", dec: "ديسمبر"
+    },
+    en: {
+        pageTitle: "Rep Portal - Firebase", syncOnline: "🟢 Connected to Firebase", syncOffline: "🟠 Offline", syncSyncing: "🔄 Loading...",
+        portalTitle: "Rep Portal", companyName: "Hala Delivery Logistics Services",
+        idLabel: "ID Number", passwordLabel: "Password", loginBtn: "Login",
+        contactAdmin: "Contact admin to get your password", logout: "Logout",
+        ordersToday: "Today's Orders", ordersMonth: "Month's Orders", loansLabel: "Loans",
+        clickDetails: "(click for details)", yourRank: "Your Rank",
+        registerOrders: "Register Today's Orders", dateLabel: "Date", orderCountLabel: "Order Count",
+        saveOrdersBtn: "Save Orders", recentOrders: "Your Recent Orders", noOrders: "No orders recorded",
+        monthlyProgress: "Monthly Progress", ofGoal: "of goal", yourOrders: "Your Orders:", monthGoal: "Month Goal:",
+        iqamaStatus: "Iqama Status", iqamaNumber: "Iqama Number", expiryDate: "Expiry Date", daysLeft: "Days Left",
+        iqamaExpired: "⚠️ Iqama expired! Contact admin immediately", iqamaExpiring: "⏰ Iqama expiring soon! Renewal required",
+        carStatus: "Car Status", noCar: "No car registered",
+        carType: "Car", plateNumber: "Plate Number", rentalOffice: "Rental Office",
+        monthlyRent: "Monthly Rent", returnDate: "Return Date", overdue: "Overdue!", days: "days",
+        achievements: "Your Achievements", recordOrders: "Record orders to see achievements",
+        achievement500: "500+ Orders", achievement300: "300+ Orders", achievement100: "100+ Orders",
+        achievement20: "20+ Today", achievementRank1: "Rank #1", achievementTop3: "Top 3", achievementDebtFree: "Debt Free",
+        salaryDetails: "Full Salary Details", item: "Item", value: "Value",
+        orders: "Orders", totalSalary: "Total Salary", wallet: "Wallet", multiOrders: "Multi Orders",
+        rejected: "Rejected", absence: "Absence", noShow: "No Show", otherDeductions: "Other Deductions",
+        car: "Car", fuel: "Fuel", loans: "Loans", housing: "Housing", extra: "Extra", netSalary: "Net Salary",
+        salaryHidden: "Salary not available", salaryHiddenMsg: "Contact admin for inquiries.",
+        debtDetails: "Loan & Payment Details", currentBalance: "Current Balance:",
+        noLoans: "No loans recorded", debtFree: "You are debt free!",
+        loanType: "Loan", paymentType: "Payment", date: "Date", movement: "Movement",
+        amount: "Amount", balanceAfter: "Balance After", notes: "Notes",
+        enterId: "Enter your ID", enterPassword: "Enter your password",
+        repNotFound: "Rep not found", noPasswordSet: "No password set for this rep. Contact admin.",
+        wrongPassword: "Wrong password", welcome: "Welcome", loginSuccess: "Login successful",
+        logoutSuccess: "Logged out", selectDate: "Select date", enterValidNumber: "Enter a valid number",
+        enterOrderCount: "Enter order count", saveSuccess: "Saved", ordersLabel: "orders",
+        successfully: "successfully!", error: "Error:", noRepsData: "No rep data registered",
+        addRepsFirst: "Add reps and passwords from admin panel first", riyal: "SAR",
+        jan: "January", feb: "February", mar: "March", apr: "April",
+        may: "May", jun: "June", jul: "July", aug: "August",
+        sep: "September", oct: "October", nov: "November", dec: "December"
+    }
+};
+
+let currentLang = 'ar';
+
+function switchLanguage(lang) {
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+    });
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (translations[lang][key]) el.textContent = translations[lang][key];
+    });
+    updateDynamicContent();
+    localStorage.setItem('portalLang', lang);
+}
+
+function updateDynamicContent() {
+    if (!currentPortalRep) return;
+    const t = translations[currentLang];
+    const syncEl = document.getElementById('syncStatus');
+    if (syncEl.classList.contains('online')) syncEl.textContent = t.syncOnline;
+    else if (syncEl.classList.contains('offline')) syncEl.textContent = t.syncOffline;
+    else if (syncEl.classList.contains('syncing')) syncEl.textContent = t.syncSyncing;
+    portalRefresh();
+}
+
+function getTranslation(key) {
+    return translations[currentLang][key] || key;
+}
+
 // ========== FIREBASE DATA MANAGEMENT ==========
 let reps = [];
 let orders = {};
@@ -336,7 +422,11 @@ let currentPortalRep = null;
 function setSyncStatus(status, msg) {
     const el = document.getElementById('syncStatus');
     el.className = 'sync-status ' + status;
-    el.textContent = msg;
+    const t = translations[currentLang];
+    if (status === 'online') el.textContent = t.syncOnline;
+    else if (status === 'offline') el.textContent = t.syncOffline;
+    else if (status === 'syncing') el.textContent = t.syncSyncing;
+    else el.textContent = msg;
 }
 
 function showToast(msg, type) {
@@ -349,51 +439,41 @@ function showToast(msg, type) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// Initialize Firebase listeners
 function initFirebaseListeners() {
-    setSyncStatus('syncing', '🔄 جاري التحميل...');
-
+    setSyncStatus('syncing', '');
     repsRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         reps = Object.keys(data).map(key => ({...data[key], _key: key}));
         if (currentPortalRep) portalRefresh();
     });
-
     ordersRef.on('value', (snapshot) => {
         orders = snapshot.val() || {};
         if (currentPortalRep) portalRefresh();
     });
-
     loansRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         loans = Object.keys(data).map(key => ({...data[key], id: key}));
         if (currentPortalRep) portalRefresh();
     });
-
     carsRef.on('value', (snapshot) => {
         const data = snapshot.val() || {};
         cars = Object.keys(data).map(key => ({...data[key], id: key}));
         if (currentPortalRep) portalRefresh();
     });
-
     repPasswordsRef.on('value', (snapshot) => {
         repPasswords = snapshot.val() || {};
     });
-
     const salariesRef = db.ref('salaries');
     salariesRef.on('value', (snapshot) => {
         salaries = snapshot.val() || {};
         if (currentPortalRep) portalRefresh();
     });
-
-    // Salary visibility listener
     const visibilityRef = db.ref('salaryVisibility');
     visibilityRef.on('value', (snapshot) => {
         window.salaryVisibilityData = snapshot.val() || {};
         if (currentPortalRep) portalRefresh();
     });
-
-    setSyncStatus('online', '🟢 متصل بـ Firebase');
+    setSyncStatus('online', '');
 }
 
 function getRepOrdersForMonth(repId, month, year) {
@@ -411,19 +491,8 @@ function getDefaultSalaryData(repId, month, year) {
     const baseSalary = orderCount * 5;
     const debt = getRepDebt(repId);
     return {
-        orders: orderCount,
-        baseSalary: baseSalary,
-        wallet: 0,
-        multiOrders: 0,
-        rejected: 0,
-        absence: 0,
-        noShow: 0,
-        otherDeductions: 0,
-        car: 0,
-        fuel: 0,
-        loans: debt > 0 ? debt : 0,
-        housing: 0,
-        extra: 0
+        orders: orderCount, baseSalary: baseSalary, wallet: 0, multiOrders: 0, rejected: 0,
+        absence: 0, noShow: 0, otherDeductions: 0, car: 0, fuel: 0, loans: debt > 0 ? debt : 0, housing: 0, extra: 0
     };
 }
 
@@ -435,10 +504,7 @@ function calculateNet(s) {
     return additions - deductions;
 }
 
-
 function isSalaryVisible(repId, monthKey) {
-    // Check salaryVisibility in Firebase
-    // Default is VISIBLE (true) if not set
     if (!window.salaryVisibilityData) return true;
     if (!window.salaryVisibilityData[monthKey]) return true;
     if (window.salaryVisibilityData[monthKey][repId] === undefined) return true;
@@ -454,26 +520,17 @@ function getRepDebt(repId) {
     return debt;
 }
 
-// تسجيل الدخول
 function portalLogin() {
+    const t = translations[currentLang];
     const id = document.getElementById('portalLoginId').value.trim();
     const password = document.getElementById('portalLoginPassword').value;
-    if (!id) { showToast('أدخل الرقم التعريفي', 'error'); return; }
-    if (!password) { showToast('أدخل كلمة المرور', 'error'); return; }
-
+    if (!id) { showToast(t.enterId, 'error'); return; }
+    if (!password) { showToast(t.enterPassword, 'error'); return; }
     const rep = reps.find(r => r.id === id);
-    if (!rep) { showToast('المندوب غير موجود', 'error'); return; }
-
+    if (!rep) { showToast(t.repNotFound, 'error'); return; }
     const storedPassword = repPasswords[id];
-    if (!storedPassword) {
-        showToast('لم يتم تعيين كلمة مرور لهذا المندوب. تواصل مع الإدارة.', 'error');
-        return;
-    }
-    if (storedPassword !== password) {
-        showToast('كلمة المرور غير صحيحة', 'error');
-        return;
-    }
-
+    if (!storedPassword) { showToast(t.noPasswordSet, 'error'); return; }
+    if (storedPassword !== password) { showToast(t.wrongPassword, 'error'); return; }
     currentPortalRep = rep;
     document.getElementById('portalLogin').classList.add('hidden');
     document.getElementById('portalDashboard').classList.remove('hidden');
@@ -483,103 +540,73 @@ function portalLogin() {
     document.getElementById('portalIqama').textContent = rep.iqama;
     document.getElementById('portalExpiry').textContent = rep.expiry;
     document.getElementById('portalOrderDate').value = new Date().toISOString().split('T')[0];
-
-    // Initialize salary month/year selectors
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
     const psmEl = document.getElementById('portalSalaryMonth');
     const psyEl = document.getElementById('portalSalaryYear');
-    if (psmEl) psmEl.value = currentMonth;
-    if (psyEl) psyEl.value = currentYear;
-
+    if (psmEl) psmEl.value = now.getMonth();
+    if (psyEl) psyEl.value = now.getFullYear();
     portalRefresh();
-    showToast('مرحباً ' + rep.name + '! تم تسجيل الدخول بنجاح', 'success');
+    showToast(t.welcome + ' ' + rep.name + '! ' + t.loginSuccess, 'success');
 }
 
 function portalLogout() {
+    const t = translations[currentLang];
     currentPortalRep = null;
     document.getElementById('portalLogin').classList.remove('hidden');
     document.getElementById('portalDashboard').classList.add('hidden');
     document.getElementById('portalLoginId').value = '';
     document.getElementById('portalLoginPassword').value = '';
-    showToast('تم تسجيل الخروج', 'info');
+    showToast(t.logoutSuccess, 'info');
 }
 
-
-// ========== DEBT DETAILS MODAL ==========
 function showDebtDetails() {
     if (!currentPortalRep) return;
+    const t = translations[currentLang];
     const repId = currentPortalRep.id;
     const myLoans = loans.filter(l => l.repId === repId).sort((a, b) => new Date(b.date) - new Date(a.date));
-
     const contentDiv = document.getElementById('debtModalContent');
     const totalDiv = document.getElementById('debtModalTotal');
-
     if (myLoans.length === 0) {
         contentDiv.innerHTML = `
             <div class="text-center py-8">
                 <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
                 </div>
-                <p class="text-slate-600 font-bold">لا توجد سلف مسجلة</p>
-                <p class="text-slate-400 text-sm mt-1">أنت خالي من الديون!</p>
-            </div>
-        `;
-        totalDiv.textContent = '0 ريال';
+                <p class="text-slate-600 font-bold">${t.noLoans}</p>
+                <p class="text-slate-400 text-sm mt-1">${t.debtFree}</p>
+            </div>`;
+        totalDiv.textContent = '0 ' + t.riyal;
         totalDiv.className = 'text-2xl font-bold text-emerald-600';
     } else {
-        // Table style matching the image: التاريخ | المندوب | النوع | المبلغ | الرصيد بعد | ملاحظات
-        let html = `
-            <div class="overflow-x-auto">
-                <table class="w-full text-right border-collapse">
-                    <thead>
-                        <tr class="border-b-2 border-slate-200">
-                            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">التاريخ</th>
-                            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">الحركة</th>
-                            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">المبلغ</th>
-                            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">الرصيد بعد</th>
-                            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">ملاحظات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        `;
-
-        myLoans.forEach((loan, idx) => {
+        let html = `<div class="overflow-x-auto"><table class="w-full ${currentLang === 'ar' ? 'text-right' : 'text-left'} border-collapse"><thead><tr class="border-b-2 border-slate-200">
+            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">${t.date}</th>
+            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">${t.movement}</th>
+            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">${t.amount}</th>
+            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">${t.balanceAfter}</th>
+            <th class="py-3 px-2 text-xs font-bold text-slate-500 uppercase tracking-wider">${t.notes}</th>
+        </tr></thead><tbody>`;
+        myLoans.forEach((loan) => {
             const isLoan = loan.type === 'loan';
             const amountSign = isLoan ? '+' : '-';
             const amountColor = isLoan ? 'text-red-600' : 'text-emerald-600';
             const balanceColor = loan.balanceAfter > 0 ? 'text-red-600' : 'text-emerald-600';
             const typeBadge = isLoan 
-                ? '<span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 font-bold">سلفة</span>'
-                : '<span class="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">سداد</span>';
-
-            // Use rep name if available, otherwise show current rep name
-            const repName = currentPortalRep ? currentPortalRep.name : loan.repName || '-';
-
-            html += `
-                <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-                    <td class="py-3 px-2 text-sm text-slate-600 font-mono">${loan.date}</td>
-                    <td class="py-3 px-2 text-sm text-slate-700 font-bold">${typeBadge}</td>
-                    <td class="py-3 px-2 text-sm font-bold font-mono ${amountColor}">${amountSign}${parseFloat(loan.amount).toFixed(2)}</td>
-                    <td class="py-3 px-2 text-sm font-bold font-mono ${balanceColor}">${parseFloat(loan.balanceAfter).toFixed(2)}</td>
-                    <td class="py-3 px-2 text-sm text-slate-600">${loan.notes || '-'}</td>
-                </tr>
-            `;
+                ? `<span class="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700 font-bold">${t.loanType}</span>`
+                : `<span class="px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700 font-bold">${t.paymentType}</span>`;
+            html += `<tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+                <td class="py-3 px-2 text-sm text-slate-600 font-mono">${loan.date}</td>
+                <td class="py-3 px-2 text-sm text-slate-700 font-bold">${typeBadge}</td>
+                <td class="py-3 px-2 text-sm font-bold font-mono ${amountColor}">${amountSign}${parseFloat(loan.amount).toFixed(2)}</td>
+                <td class="py-3 px-2 text-sm font-bold font-mono ${balanceColor}">${parseFloat(loan.balanceAfter).toFixed(2)}</td>
+                <td class="py-3 px-2 text-sm text-slate-600">${loan.notes || '-'}</td>
+            </tr>`;
         });
-
-        html += `
-                    </tbody>
-                </table>
-            </div>
-        `;
+        html += `</tbody></table></div>`;
         contentDiv.innerHTML = html;
-
         const currentDebt = getRepDebt(repId);
-        totalDiv.textContent = Math.abs(currentDebt).toFixed(2) + ' ريال';
+        totalDiv.textContent = Math.abs(currentDebt).toFixed(2) + ' ' + t.riyal;
         totalDiv.className = 'text-2xl font-bold ' + (currentDebt > 0 ? 'text-red-600' : currentDebt < 0 ? 'text-emerald-600' : 'text-slate-600');
     }
-
     document.getElementById('debtModal').classList.add('active');
 }
 
@@ -587,16 +614,14 @@ function closeDebtModal() {
     document.getElementById('debtModal').classList.remove('active');
 }
 
-// Close modal when clicking outside
 window.addEventListener('click', function(e) {
     const modal = document.getElementById('debtModal');
-    if (e.target === modal) {
-        closeDebtModal();
-    }
+    if (e.target === modal) closeDebtModal();
 });
 
 function portalRefresh() {
     if (!currentPortalRep) return;
+    const t = translations[currentLang];
     const repId = currentPortalRep.id;
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -643,17 +668,17 @@ function portalRefresh() {
     const expiryDate = new Date(currentPortalRep.expiry);
     const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
     const daysEl = document.getElementById('portalDaysLeft');
-    daysEl.textContent = daysLeft < 0 ? 'منتهية!' : daysLeft + ' يوم';
+    daysEl.textContent = daysLeft < 0 ? t.iqamaExpired.split('!')[0] + '!' : daysLeft + ' ' + t.days;
     daysEl.className = 'font-bold ' + (daysLeft < 30 ? 'text-red-600' : daysLeft < 60 ? 'text-orange-600' : 'text-emerald-600');
 
     const alertDiv = document.getElementById('portalIqamaAlert');
     if (daysLeft < 0) {
         alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-red-100 text-red-700';
-        alertDiv.textContent = '⚠️ الإقامة منتهية! تواصل مع الإدارة فوراً';
+        alertDiv.textContent = t.iqamaExpired;
         alertDiv.classList.remove('hidden');
     } else if (daysLeft <= 30) {
         alertDiv.className = 'p-3 rounded-xl text-center font-bold text-sm bg-orange-100 text-orange-700';
-        alertDiv.textContent = '⏰ الإقامة تنتهي قريباً! تجديد عاجل';
+        alertDiv.textContent = t.iqamaExpiring;
         alertDiv.classList.remove('hidden');
     } else {
         alertDiv.classList.add('hidden');
@@ -665,13 +690,13 @@ function portalRefresh() {
         const returnDate = myCar.return ? new Date(myCar.return) : null;
         const carDaysLeft = returnDate ? Math.ceil((returnDate - now) / (1000 * 60 * 60 * 24)) : null;
         carDiv.innerHTML = `
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">السيارة</span><span class="font-bold text-slate-800">${myCar.type}</span></div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">رقم اللوحة</span><span class="font-bold font-mono text-slate-800">${myCar.plate}</span></div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">مكتب التأجير</span><span class="font-bold text-slate-800">${myCar.office}</span></div>
-            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">الإيجار الشهري</span><span class="font-bold text-slate-800">${parseFloat(myCar.rent).toFixed(2)} ريال</span></div>
-            ${returnDate ? `<div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl"><span class="text-slate-600">تاريخ التسليم</span><span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : 'text-slate-800'}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' يوم' : 'متأخرة!'})</span></div>` : ''}`;
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">${t.carType}</span><span class="font-bold text-slate-800">${myCar.type}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">${t.plateNumber}</span><span class="font-bold font-mono text-slate-800">${myCar.plate}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">${t.rentalOffice}</span><span class="font-bold text-slate-800">${myCar.office}</span></div>
+            <div class="flex justify-between p-3 bg-slate-50 rounded-xl"><span class="text-slate-600">${t.monthlyRent}</span><span class="font-bold text-slate-800">${parseFloat(myCar.rent).toFixed(2)} ${t.riyal}</span></div>
+            ${returnDate ? `<div class="flex justify-between p-3 ${carDaysLeft < 7 ? 'bg-red-50' : 'bg-slate-50'} rounded-xl"><span class="text-slate-600">${t.returnDate}</span><span class="font-bold ${carDaysLeft < 7 ? 'text-red-600' : 'text-slate-800'}">${myCar.return} (${carDaysLeft > 0 ? carDaysLeft + ' ' + t.days : t.overdue})</span></div>` : ''}`;
     } else {
-        carDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد سيارة نشطة مسجلة</div>';
+        carDiv.innerHTML = `<div class="text-center text-slate-400 py-4">${t.noCar}</div>`;
     }
 
     const recentDiv = document.getElementById('portalRecentOrders');
@@ -682,39 +707,35 @@ function portalRefresh() {
         if (val > 0) myOrders.push({date: dateStr, count: val});
     }
     if (myOrders.length === 0) {
-        recentDiv.innerHTML = '<div class="text-center text-slate-400 py-4">لا توجد طلبات مسجلة هذا الشهر</div>';
+        recentDiv.innerHTML = `<div class="text-center text-slate-400 py-4">${t.noOrders}</div>`;
     } else {
         recentDiv.innerHTML = myOrders.slice(0, 10).map(o => `
             <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                 <span class="text-slate-600 text-sm">${o.date}</span>
-                <span class="font-bold text-blue-600">${o.count} طلب</span>
+                <span class="font-bold text-blue-600">${o.count} ${t.ordersLabel}</span>
             </div>`).join('');
     }
 
     const achDiv = document.getElementById('portalAchievements');
     const achievements = [];
-    if (monthTotal >= 500) achievements.push({icon: '🏆', text: '500+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
-    if (monthTotal >= 300) achievements.push({icon: '🥈', text: '300+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
-    if (monthTotal >= 100) achievements.push({icon: '🥉', text: '100+ طلب', color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
-    if (todayOrders >= 20) achievements.push({icon: '🔥', text: '20+ اليوم', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
-    if (rank === 1) achievements.push({icon: '👑', text: 'المركز الأول', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
-    if (rank <= 3 && rank > 0) achievements.push({icon: '🌟', text: 'Top 3', color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
-    if (debt === 0) achievements.push({icon: '✅', text: 'خالي من الديون', color: 'bg-emerald-500'});
+    if (monthTotal >= 500) achievements.push({icon: '🏆', text: t.achievement500, color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (monthTotal >= 300) achievements.push({icon: '🥈', text: t.achievement300, color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (monthTotal >= 100) achievements.push({icon: '🥉', text: t.achievement100, color: 'bg-gradient-to-r from-yellow-400 to-orange-500'});
+    if (todayOrders >= 20) achievements.push({icon: '🔥', text: t.achievement20, color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (rank === 1) achievements.push({icon: '👑', text: t.achievementRank1, color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (rank <= 3 && rank > 0) achievements.push({icon: '🌟', text: t.achievementTop3, color: 'bg-gradient-to-r from-purple-500 to-indigo-600'});
+    if (debt === 0) achievements.push({icon: '✅', text: t.achievementDebtFree, color: 'bg-emerald-500'});
 
     if (achievements.length === 0) {
-        achDiv.innerHTML = '<span class="text-slate-400 text-sm">سجل طلباتك لتظهر الإنجازات</span>';
+        achDiv.innerHTML = `<span class="text-slate-400 text-sm">${t.recordOrders}</span>`;
     } else {
         achDiv.innerHTML = achievements.map(a => `<span class="${a.color} text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1">${a.icon} ${a.text}</span>`).join('');
     }
 
-    // Update Salary Info - ALWAYS uses current month/year (independent of salary selectors)
     const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
     const isVisible = isSalaryVisible(repId, salaryKey);
-
-    // Get the salary container elements
     const salaryTableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
 
-    // Create hidden message element if it doesn't exist
     let hiddenMsg = document.getElementById('salaryHiddenMessage');
     if (!hiddenMsg) {
         hiddenMsg = document.createElement('div');
@@ -724,14 +745,12 @@ function portalRefresh() {
                 <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                 </div>
-                <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
-                <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
-            </div>
-        `;
+                <h4 class="text-xl font-bold text-red-700 mb-2">${t.salaryHidden}</h4>
+                <p class="text-red-600">${t.salaryHiddenMsg}</p>
+            </div>`;
     }
 
     if (!isVisible) {
-        // Hide table, show hidden message
         if (salaryTableContainer) {
             salaryTableContainer.style.display = 'none';
             if (!salaryTableContainer.parentNode.querySelector('#salaryHiddenMessage')) {
@@ -739,45 +758,12 @@ function portalRefresh() {
             }
             hiddenMsg.style.display = 'block';
         }
-        // Also clear the summary values
-        const psoEl = document.getElementById('portalSalOrders');
-        const psbEl = document.getElementById('portalSalBase');
-        const pswEl = document.getElementById('portalSalWallet');
-        const psmEl = document.getElementById('portalSalMulti');
-        const psrEl = document.getElementById('portalSalRejected');
-        const psaEl = document.getElementById('portalSalAbsence');
-        const psnEl = document.getElementById('portalSalNoShow');
-        const pso2El = document.getElementById('portalSalOther');
-        const pscEl = document.getElementById('portalSalCar');
-        const psfEl = document.getElementById('portalSalFuel');
-        const pslEl = document.getElementById('portalSalLoans');
-        const pshEl = document.getElementById('portalSalHousing');
-        const pseEl = document.getElementById('portalSalExtra');
-        const psn2El = document.getElementById('portalSalNet');
-        if (psoEl) psoEl.textContent = '-';
-        if (psbEl) psbEl.textContent = '-';
-        if (pswEl) pswEl.textContent = '-';
-        if (psmEl) psmEl.textContent = '-';
-        if (psrEl) psrEl.textContent = '-';
-        if (psaEl) psaEl.textContent = '-';
-        if (psnEl) psnEl.textContent = '-';
-        if (pso2El) pso2El.textContent = '-';
-        if (pscEl) pscEl.textContent = '-';
-        if (psfEl) psfEl.textContent = '-';
-        if (pslEl) pslEl.textContent = '-';
-        if (pshEl) pshEl.textContent = '-';
-        if (pseEl) pseEl.textContent = '-';
-        if (psn2El) psn2El.textContent = '-';
+        const ids = ['portalSalOrders','portalSalBase','portalSalWallet','portalSalMulti','portalSalRejected','portalSalAbsence','portalSalNoShow','portalSalOther','portalSalCar','portalSalFuel','portalSalLoans','portalSalHousing','portalSalExtra','portalSalNet'];
+        ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '-'; });
     } else {
-        // Show table, hide hidden message
-        if (salaryTableContainer) {
-            salaryTableContainer.style.display = 'block';
-        }
-        if (hiddenMsg) {
-            hiddenMsg.style.display = 'none';
-        }
+        if (salaryTableContainer) salaryTableContainer.style.display = 'block';
+        if (hiddenMsg) hiddenMsg.style.display = 'none';
 
-        // Salary is visible - show normal data
         const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
         const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
         const sal = {
@@ -797,7 +783,6 @@ function portalRefresh() {
         };
         const netSalary = calculateNet(sal);
 
-        // Update Full Salary Details Table (current month only)
         const psoEl = document.getElementById('portalSalOrders');
         const psbEl = document.getElementById('portalSalBase');
         const pswEl = document.getElementById('portalSalWallet');
@@ -814,22 +799,25 @@ function portalRefresh() {
         const psn2El = document.getElementById('portalSalNet');
 
         if (psoEl) psoEl.textContent = sal.orders;
-        if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-        if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
-        if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
-        if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
-        if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
-        if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
-        if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
-        if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
-        if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
-        if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
-        if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
-        if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
-        if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
-    }}
+        if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ' + t.riyal;
+        if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ' + t.riyal;
+        if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ' + t.riyal;
+        if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ' + t.riyal;
+        if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ' + t.riyal;
+        if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ' + t.riyal;
+        if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ' + t.riyal;
+        if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ' + t.riyal;
+        if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ' + t.riyal;
+        if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ' + t.riyal;
+        if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ' + t.riyal;
+        if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ' + t.riyal;
+        if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ' + t.riyal;
+    }
+}
+
 function portalRefreshSalaryOnly() {
     if (!currentPortalRep) return;
+    const t = translations[currentLang];
     const repId = currentPortalRep.id;
 
     const selectedMonth = parseInt(document.getElementById('portalSalaryMonth')?.value || new Date().getMonth());
@@ -837,11 +825,8 @@ function portalRefreshSalaryOnly() {
     const salaryKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}`;
 
     const isVisible = isSalaryVisible(repId, salaryKey);
-
-    // Get references to table container and hidden message
     const tableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
 
-    // Create hidden message element if it doesn't exist
     let hiddenMsg = document.getElementById('salaryHiddenMessage');
     if (!hiddenMsg) {
         hiddenMsg = document.createElement('div');
@@ -851,14 +836,12 @@ function portalRefreshSalaryOnly() {
                 <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                 </div>
-                <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
-                <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
-            </div>
-        `;
+                <h4 class="text-xl font-bold text-red-700 mb-2">${t.salaryHidden}</h4>
+                <p class="text-red-600">${t.salaryHiddenMsg}</p>
+            </div>`;
     }
 
     if (!isVisible) {
-        // Hide table, show hidden message
         if (tableContainer) {
             tableContainer.style.display = 'none';
             if (!tableContainer.parentNode.querySelector('#salaryHiddenMessage')) {
@@ -866,45 +849,13 @@ function portalRefreshSalaryOnly() {
             }
             hiddenMsg.style.display = 'block';
         }
-        // Clear summary values
-        const psoEl = document.getElementById('portalSalOrders');
-        const psbEl = document.getElementById('portalSalBase');
-        const pswEl = document.getElementById('portalSalWallet');
-        const psmEl = document.getElementById('portalSalMulti');
-        const psrEl = document.getElementById('portalSalRejected');
-        const psaEl = document.getElementById('portalSalAbsence');
-        const psnEl = document.getElementById('portalSalNoShow');
-        const pso2El = document.getElementById('portalSalOther');
-        const pscEl = document.getElementById('portalSalCar');
-        const psfEl = document.getElementById('portalSalFuel');
-        const pslEl = document.getElementById('portalSalLoans');
-        const pshEl = document.getElementById('portalSalHousing');
-        const pseEl = document.getElementById('portalSalExtra');
-        const psn2El = document.getElementById('portalSalNet');
-        if (psoEl) psoEl.textContent = '-';
-        if (psbEl) psbEl.textContent = '-';
-        if (pswEl) pswEl.textContent = '-';
-        if (psmEl) psmEl.textContent = '-';
-        if (psrEl) psrEl.textContent = '-';
-        if (psaEl) psaEl.textContent = '-';
-        if (psnEl) psnEl.textContent = '-';
-        if (pso2El) pso2El.textContent = '-';
-        if (pscEl) pscEl.textContent = '-';
-        if (psfEl) psfEl.textContent = '-';
-        if (pslEl) pslEl.textContent = '-';
-        if (pshEl) pshEl.textContent = '-';
-        if (pseEl) pseEl.textContent = '-';
-        if (psn2El) psn2El.textContent = '-';
+        const ids = ['portalSalOrders','portalSalBase','portalSalWallet','portalSalMulti','portalSalRejected','portalSalAbsence','portalSalNoShow','portalSalOther','portalSalCar','portalSalFuel','portalSalLoans','portalSalHousing','portalSalExtra','portalSalNet'];
+        ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = '-'; });
         return;
     }
 
-    // Show table, hide hidden message
-    if (tableContainer) {
-        tableContainer.style.display = 'block';
-    }
-    if (hiddenMsg) {
-        hiddenMsg.style.display = 'none';
-    }
+    if (tableContainer) tableContainer.style.display = 'block';
+    if (hiddenMsg) hiddenMsg.style.display = 'none';
 
     const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
     const salaryDefaults = getDefaultSalaryData(repId, selectedMonth, selectedYear);
@@ -927,7 +878,6 @@ function portalRefreshSalaryOnly() {
 
     const netSalary = calculateNet(sal);
 
-    // Update Full Salary Details Table ONLY (based on selected month/year)
     const psoEl = document.getElementById('portalSalOrders');
     const psbEl = document.getElementById('portalSalBase');
     const pswEl = document.getElementById('portalSalWallet');
@@ -944,60 +894,64 @@ function portalRefreshSalaryOnly() {
     const psn2El = document.getElementById('portalSalNet');
 
     if (psoEl) psoEl.textContent = sal.orders;
-    if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-    if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
-    if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
-    if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
-    if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
-    if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
-    if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
-    if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
-    if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
-    if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
-    if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
-    if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
-    if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
+    if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ' + t.riyal;
+    if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ' + t.riyal;
+    if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ' + t.riyal;
+    if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ' + t.riyal;
+    if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ' + t.riyal;
+    if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ' + t.riyal;
+    if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ' + t.riyal;
+    if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ' + t.riyal;
+    if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ' + t.riyal;
+    if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ' + t.riyal;
+    if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ' + t.riyal;
+    if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ' + t.riyal;
+    if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ' + t.riyal;
 }
+
 async function portalSaveOrder() {
-    if (!currentPortalRep) { showToast('سجل دخول أولاً', 'error'); return; }
+    if (!currentPortalRep) { showToast(getTranslation('enterId'), 'error'); return; }
+    const t = translations[currentLang];
     const date = document.getElementById('portalOrderDate').value;
     const count = parseInt(document.getElementById('portalOrderCount').value);
-    if (!date) { showToast('اختر التاريخ', 'error'); return; }
-    if (isNaN(count) || count < 0) { showToast('أدخل عدد صحيح', 'error'); return; }
-    if (count === 0) { showToast('أدخل عدد الطلبات', 'warning'); return; }
+    if (!date) { showToast(t.selectDate, 'error'); return; }
+    if (isNaN(count) || count < 0) { showToast(t.enterValidNumber, 'error'); return; }
+    if (count === 0) { showToast(t.enterOrderCount, 'warning'); return; }
 
     try {
-        setSyncStatus('syncing', '🔄 جاري الحفظ...');
+        setSyncStatus('syncing', '');
         await ordersRef.child(date).child(currentPortalRep.id).set(count);
         document.getElementById('portalOrderCount').value = '';
         portalRefresh();
-        showToast('تم حفظ ' + count + ' طلب بنجاح!', 'success');
-        setSyncStatus('online', '🟢 متصل بـ Firebase');
+        showToast(t.saveSuccess + ' ' + count + ' ' + t.ordersLabel + ' ' + t.successfully, 'success');
+        setSyncStatus('online', '');
     } catch(e) {
-        showToast('خطأ: ' + e.message, 'error');
+        showToast(t.error + ' ' + e.message, 'error');
     }
 }
 
-// Check if no reps registered
 function checkNoReps() {
+    const t = translations[currentLang];
     if (reps.length === 0) {
         document.getElementById('portalLogin').innerHTML = `
             <div class="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
                 <div class="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center mx-auto mb-4 text-3xl font-bold shadow-lg">
                     <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                <h3 class="text-2xl font-bold text-slate-800 mb-2">بوابة المندوب</h3>
-                <p class="text-slate-500 mb-6">لا توجد بيانات مناديب مسجلة</p>
-                <p class="text-slate-400 text-sm">يجب إضافة المناديب وكلمات المرور من خلال لوحة الإدارة أولاً</p>
+                <h3 class="text-2xl font-bold text-slate-800 mb-2">${t.portalTitle}</h3>
+                <p class="text-slate-500 mb-6">${t.noRepsData}</p>
+                <p class="text-slate-400 text-sm">${t.addRepsFirst}</p>
             </div>
         `;
     }
 }
 
-// ========== INITIALIZATION ==========
 document.addEventListener('DOMContentLoaded', () => {
+    const savedLang = localStorage.getItem('portalLang');
+    if (savedLang && savedLang !== 'ar') {
+        switchLanguage(savedLang);
+    }
     initFirebaseListeners();
-    // Check after a short delay to allow data to load
     setTimeout(checkNoReps, 2000);
 });
 </script>
@@ -1006,17 +960,15 @@ document.addEventListener('DOMContentLoaded', () => {
 <div id="debtModal" class="modal">
     <div class="modal-content shadow-2xl" style="max-width: 800px; width: 95%;">
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-2xl font-bold text-slate-800">تفاصيل السلف والسداد</h3>
+            <h3 class="text-2xl font-bold text-slate-800" data-i18n="debtDetails">تفاصيل السلف والسداد</h3>
             <button onclick="closeDebtModal()" class="text-slate-400 hover:text-slate-600 text-xl">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
         </div>
-        <div id="debtModalContent" class="space-y-4">
-            <!-- Content will be filled by JS -->
-        </div>
+        <div id="debtModalContent" class="space-y-4"></div>
         <div class="mt-6 pt-4 border-t border-slate-200">
             <div class="flex justify-between items-center">
-                <span class="font-bold text-slate-700">الرصيد الحالي:</span>
+                <span class="font-bold text-slate-700" data-i18n="currentBalance">الرصيد الحالي:</span>
                 <span id="debtModalTotal" class="text-2xl font-bold">0</span>
             </div>
         </div>
