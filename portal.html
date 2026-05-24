@@ -104,6 +104,8 @@ const repPasswordsRef = db.ref('repPasswords');
             display: block;
         }
         html[dir="ltr"] .sync-status { right: 20px; left: auto; }
+        .lang-switcher.hidden { display: none !important; }
+
     </style>
 </head>
 <body>
@@ -581,6 +583,7 @@ function portalLogin() {
     currentPortalRep = rep;
     document.getElementById('portalLogin').classList.add('hidden');
     document.getElementById('portalDashboard').classList.remove('hidden');
+    document.getElementById('langSwitcher').classList.add('hidden');
     document.getElementById('portalName').textContent = rep.name;
     document.getElementById('portalId').textContent = rep.id;
     document.getElementById('portalAvatar').textContent = rep.name.charAt(0);
@@ -602,6 +605,7 @@ function portalLogout() {
     currentPortalRep = null;
     document.getElementById('portalLogin').classList.remove('hidden');
     document.getElementById('portalDashboard').classList.add('hidden');
+    document.getElementById('langSwitcher').classList.remove('hidden');
     document.getElementById('portalLoginId').value = '';
     document.getElementById('portalLoginPassword').value = '';
     document.getElementById('logoutBtnContainer').classList.remove('visible');
