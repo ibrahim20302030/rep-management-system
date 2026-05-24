@@ -387,6 +387,13 @@ function initFirebaseListeners() {
         if (currentPortalRep) portalRefresh();
     });
 
+    // Salary visibility listener
+    const visibilityRef = db.ref('salaryVisibility');
+    visibilityRef.on('value', (snapshot) => {
+        window.salaryVisibilityData = snapshot.val() || {};
+        if (currentPortalRep) portalRefresh();
+    });
+
     setSyncStatus('online', '🟢 متصل بـ Firebase');
 }
 
@@ -427,6 +434,16 @@ function calculateNet(s) {
                       parseFloat(s.noShow || 0) + parseFloat(s.otherDeductions || 0) + parseFloat(s.car || 0) + 
                       parseFloat(s.fuel || 0) + parseFloat(s.loans || 0) + parseFloat(s.housing || 0);
     return additions - deductions;
+}
+
+
+function isSalaryVisible(repId, monthKey) {
+    // Check salaryVisibility in Firebase
+    // Default is VISIBLE (true) if not set
+    if (!window.salaryVisibilityData) return true;
+    if (!window.salaryVisibilityData[monthKey]) return true;
+    if (window.salaryVisibilityData[monthKey][repId] === undefined) return true;
+    return window.salaryVisibilityData[monthKey][repId];
 }
 
 function getRepDebt(repId) {
@@ -693,56 +710,106 @@ function portalRefresh() {
 
     // Update Salary Info - ALWAYS uses current month/year (independent of salary selectors)
     const salaryKey = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
-    const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
-    const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
-    const sal = {
-        orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
-        baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
-        wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
-        multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
-        rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
-        absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
-        noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
-        otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
-        car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
-        fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
-        loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
-        housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
-        extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
-    };
-    const netSalary = calculateNet(sal);
+    const isVisible = isSalaryVisible(repId, salaryKey);
 
-    // Update Full Salary Details Table (current month only)
-    const psoEl = document.getElementById('portalSalOrders');
-    const psbEl = document.getElementById('portalSalBase');
-    const pswEl = document.getElementById('portalSalWallet');
-    const psmEl = document.getElementById('portalSalMulti');
-    const psrEl = document.getElementById('portalSalRejected');
-    const psaEl = document.getElementById('portalSalAbsence');
-    const psnEl = document.getElementById('portalSalNoShow');
-    const pso2El = document.getElementById('portalSalOther');
-    const pscEl = document.getElementById('portalSalCar');
-    const psfEl = document.getElementById('portalSalFuel');
-    const pslEl = document.getElementById('portalSalLoans');
-    const pshEl = document.getElementById('portalSalHousing');
-    const pseEl = document.getElementById('portalSalExtra');
-    const psn2El = document.getElementById('portalSalNet');
+    // Get the salary container elements
+    const salaryTableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
+    const salaryTitle = document.querySelector('#portalSalaryDetails')?.closest('.bg-white')?.querySelector('h3');
 
-    if (psoEl) psoEl.textContent = sal.orders;
-    if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
-    if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
-    if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
-    if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
-    if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
-    if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
-    if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
-    if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
-    if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
-    if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
-    if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
-    if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
-    if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
-}
+    if (!isVisible) {
+        // Hide salary data - show hidden message
+        if (salaryTableContainer) {
+            salaryTableContainer.innerHTML = `
+                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                    <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </div>
+                    <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
+                    <p class="text-red-600">تم إخفاء بيانات الراتب من قبل الإدارة. تواصل مع الإدارة للاستفسار.</p>
+                </div>
+            `;
+        }
+        // Also clear the summary values
+        const psoEl = document.getElementById('portalSalOrders');
+        const psbEl = document.getElementById('portalSalBase');
+        const pswEl = document.getElementById('portalSalWallet');
+        const psmEl = document.getElementById('portalSalMulti');
+        const psrEl = document.getElementById('portalSalRejected');
+        const psaEl = document.getElementById('portalSalAbsence');
+        const psnEl = document.getElementById('portalSalNoShow');
+        const pso2El = document.getElementById('portalSalOther');
+        const pscEl = document.getElementById('portalSalCar');
+        const psfEl = document.getElementById('portalSalFuel');
+        const pslEl = document.getElementById('portalSalLoans');
+        const pshEl = document.getElementById('portalSalHousing');
+        const pseEl = document.getElementById('portalSalExtra');
+        const psn2El = document.getElementById('portalSalNet');
+        if (psoEl) psoEl.textContent = '-';
+        if (psbEl) psbEl.textContent = '-';
+        if (pswEl) pswEl.textContent = '-';
+        if (psmEl) psmEl.textContent = '-';
+        if (psrEl) psrEl.textContent = '-';
+        if (psaEl) psaEl.textContent = '-';
+        if (psnEl) psnEl.textContent = '-';
+        if (pso2El) pso2El.textContent = '-';
+        if (pscEl) pscEl.textContent = '-';
+        if (psfEl) psfEl.textContent = '-';
+        if (pslEl) pslEl.textContent = '-';
+        if (pshEl) pshEl.textContent = '-';
+        if (pseEl) pseEl.textContent = '-';
+        if (psn2El) psn2El.textContent = '-';
+    } else {
+        // Salary is visible - show normal data
+        const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
+        const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
+        const sal = {
+            orders: mySalaryData.orders !== undefined ? mySalaryData.orders : salaryDefaults.orders,
+            baseSalary: mySalaryData.baseSalary !== undefined ? mySalaryData.baseSalary : salaryDefaults.baseSalary,
+            wallet: mySalaryData.wallet !== undefined ? mySalaryData.wallet : salaryDefaults.wallet,
+            multiOrders: mySalaryData.multiOrders !== undefined ? mySalaryData.multiOrders : salaryDefaults.multiOrders,
+            rejected: mySalaryData.rejected !== undefined ? mySalaryData.rejected : salaryDefaults.rejected,
+            absence: mySalaryData.absence !== undefined ? mySalaryData.absence : salaryDefaults.absence,
+            noShow: mySalaryData.noShow !== undefined ? mySalaryData.noShow : salaryDefaults.noShow,
+            otherDeductions: mySalaryData.otherDeductions !== undefined ? mySalaryData.otherDeductions : salaryDefaults.otherDeductions,
+            car: mySalaryData.car !== undefined ? mySalaryData.car : salaryDefaults.car,
+            fuel: mySalaryData.fuel !== undefined ? mySalaryData.fuel : salaryDefaults.fuel,
+            loans: mySalaryData.loans !== undefined ? mySalaryData.loans : salaryDefaults.loans,
+            housing: mySalaryData.housing !== undefined ? mySalaryData.housing : salaryDefaults.housing,
+            extra: mySalaryData.extra !== undefined ? mySalaryData.extra : salaryDefaults.extra
+        };
+        const netSalary = calculateNet(sal);
+
+        // Update Full Salary Details Table (current month only)
+        const psoEl = document.getElementById('portalSalOrders');
+        const psbEl = document.getElementById('portalSalBase');
+        const pswEl = document.getElementById('portalSalWallet');
+        const psmEl = document.getElementById('portalSalMulti');
+        const psrEl = document.getElementById('portalSalRejected');
+        const psaEl = document.getElementById('portalSalAbsence');
+        const psnEl = document.getElementById('portalSalNoShow');
+        const pso2El = document.getElementById('portalSalOther');
+        const pscEl = document.getElementById('portalSalCar');
+        const psfEl = document.getElementById('portalSalFuel');
+        const pslEl = document.getElementById('portalSalLoans');
+        const pshEl = document.getElementById('portalSalHousing');
+        const pseEl = document.getElementById('portalSalExtra');
+        const psn2El = document.getElementById('portalSalNet');
+
+        if (psoEl) psoEl.textContent = sal.orders;
+        if (psbEl) psbEl.textContent = sal.baseSalary.toFixed(2) + ' ريال';
+        if (pswEl) pswEl.textContent = sal.wallet.toFixed(2) + ' ريال';
+        if (psmEl) psmEl.textContent = sal.multiOrders.toFixed(2) + ' ريال';
+        if (psrEl) psrEl.textContent = sal.rejected.toFixed(2) + ' ريال';
+        if (psaEl) psaEl.textContent = sal.absence.toFixed(2) + ' ريال';
+        if (psnEl) psnEl.textContent = sal.noShow.toFixed(2) + ' ريال';
+        if (pso2El) pso2El.textContent = sal.otherDeductions.toFixed(2) + ' ريال';
+        if (pscEl) pscEl.textContent = sal.car.toFixed(2) + ' ريال';
+        if (psfEl) psfEl.textContent = sal.fuel.toFixed(2) + ' ريال';
+        if (pslEl) pslEl.textContent = sal.loans.toFixed(2) + ' ريال';
+        if (pshEl) pshEl.textContent = sal.housing.toFixed(2) + ' ريال';
+        if (pseEl) pseEl.textContent = sal.extra.toFixed(2) + ' ريال';
+        if (psn2El) psn2El.textContent = netSalary.toFixed(2) + ' ريال';
+    }}
 function portalRefreshSalaryOnly() {
     if (!currentPortalRep) return;
     const repId = currentPortalRep.id;
@@ -750,6 +817,54 @@ function portalRefreshSalaryOnly() {
     const selectedMonth = parseInt(document.getElementById('portalSalaryMonth')?.value || new Date().getMonth());
     const selectedYear = parseInt(document.getElementById('portalSalaryYear')?.value || new Date().getFullYear());
     const salaryKey = `${selectedYear}-${String(selectedMonth+1).padStart(2,'0')}`;
+
+    const isVisible = isSalaryVisible(repId, salaryKey);
+
+    if (!isVisible) {
+        // Show hidden message
+        const salaryTableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
+        if (salaryTableContainer) {
+            salaryTableContainer.innerHTML = `
+                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                    <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                    </div>
+                    <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
+                    <p class="text-red-600">تم إخفاء بيانات الراتب من قبل الإدارة. تواصل مع الإدارة للاستفسار.</p>
+                </div>
+            `;
+        }
+        // Clear summary values
+        const psoEl = document.getElementById('portalSalOrders');
+        const psbEl = document.getElementById('portalSalBase');
+        const pswEl = document.getElementById('portalSalWallet');
+        const psmEl = document.getElementById('portalSalMulti');
+        const psrEl = document.getElementById('portalSalRejected');
+        const psaEl = document.getElementById('portalSalAbsence');
+        const psnEl = document.getElementById('portalSalNoShow');
+        const pso2El = document.getElementById('portalSalOther');
+        const pscEl = document.getElementById('portalSalCar');
+        const psfEl = document.getElementById('portalSalFuel');
+        const pslEl = document.getElementById('portalSalLoans');
+        const pshEl = document.getElementById('portalSalHousing');
+        const pseEl = document.getElementById('portalSalExtra');
+        const psn2El = document.getElementById('portalSalNet');
+        if (psoEl) psoEl.textContent = '-';
+        if (psbEl) psbEl.textContent = '-';
+        if (pswEl) pswEl.textContent = '-';
+        if (psmEl) psmEl.textContent = '-';
+        if (psrEl) psrEl.textContent = '-';
+        if (psaEl) psaEl.textContent = '-';
+        if (psnEl) psnEl.textContent = '-';
+        if (pso2El) pso2El.textContent = '-';
+        if (pscEl) pscEl.textContent = '-';
+        if (psfEl) psfEl.textContent = '-';
+        if (pslEl) pslEl.textContent = '-';
+        if (pshEl) pshEl.textContent = '-';
+        if (pseEl) pseEl.textContent = '-';
+        if (psn2El) psn2El.textContent = '-';
+        return;
+    }
 
     const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
     const salaryDefaults = getDefaultSalaryData(repId, selectedMonth, selectedYear);
