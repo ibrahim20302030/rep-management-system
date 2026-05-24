@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -91,7 +92,7 @@ const repPasswordsRef = db.ref('repPasswords');
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <h3 class="text-2xl font-bold text-slate-800">بوابة المندوب</h3>
-            <p class="text-slate-500 mt-2">أدخل بيانات تسجيل الدخول</p>
+            <p class="text-2xl font-bold text-slate-800"">شركة هلا توصيل للخدمات اللوجيستية </p>
         </div>
         <div class="space-y-4">
             <div>
@@ -300,7 +301,7 @@ const repPasswordsRef = db.ref('repPasswords');
                             <tbody id="portalSalaryDetails">
                                 <tr class="border-b"><td class="px-3 py-3 text-slate-600">الطلبات</td><td class="px-3 py-3 font-bold" id="portalSalOrders">0</td></tr>
                                 <tr class="border-b"><td class="px-3 py-3 text-slate-600">إجمالي الراتب</td><td class="px-3 py-3 font-bold text-blue-600" id="portalSalBase">0</td></tr>
-                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">محفظة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalWallet">0</td></tr>
+                                <tr class="border-b"><td class="px-3 py-3 text-slate-600">محفظة</td><td class="px-3 py-3 font-bold text-emerald-600" id="portalSalWallet">0</td></tr>
                                 <tr class="border-b"><td class="px-3 py-3 text-slate-600">طلبات متعددة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalMulti">0</td></tr>
                                 <tr class="border-b"><td class="px-3 py-3 text-slate-600">مرفوضة</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalRejected">0</td></tr>
                                 <tr class="border-b"><td class="px-3 py-3 text-slate-600">غياب</td><td class="px-3 py-3 font-bold text-red-600" id="portalSalAbsence">0</td></tr>
@@ -713,20 +714,31 @@ function portalRefresh() {
 
     // Get the salary container elements
     const salaryTableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
-    const salaryTitle = document.querySelector('#portalSalaryDetails')?.closest('.bg-white')?.querySelector('h3');
+
+    // Create hidden message element if it doesn't exist
+    let hiddenMsg = document.getElementById('salaryHiddenMessage');
+    if (!hiddenMsg) {
+        hiddenMsg = document.createElement('div');
+        hiddenMsg.id = 'salaryHiddenMessage';
+        hiddenMsg.innerHTML = `
+            <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
+                </div>
+                <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
+                <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
+            </div>
+        `;
+    }
 
     if (!isVisible) {
-        // Hide salary data - show hidden message
+        // Hide table, show hidden message
         if (salaryTableContainer) {
-            salaryTableContainer.innerHTML = `
-                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
-                    <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
-                    </div>
-                    <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
-                    <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
-                </div>
-            `;
+            salaryTableContainer.style.display = 'none';
+            if (!salaryTableContainer.parentNode.querySelector('#salaryHiddenMessage')) {
+                salaryTableContainer.parentNode.insertBefore(hiddenMsg, salaryTableContainer.nextSibling);
+            }
+            hiddenMsg.style.display = 'block';
         }
         // Also clear the summary values
         const psoEl = document.getElementById('portalSalOrders');
@@ -758,6 +770,14 @@ function portalRefresh() {
         if (pseEl) pseEl.textContent = '-';
         if (psn2El) psn2El.textContent = '-';
     } else {
+        // Show table, hide hidden message
+        if (salaryTableContainer) {
+            salaryTableContainer.style.display = 'block';
+        }
+        if (hiddenMsg) {
+            hiddenMsg.style.display = 'none';
+        }
+
         // Salary is visible - show normal data
         const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
         const salaryDefaults = getDefaultSalaryData(repId, currentMonth, currentYear);
@@ -819,19 +839,33 @@ function portalRefreshSalaryOnly() {
 
     const isVisible = isSalaryVisible(repId, salaryKey);
 
-    if (!isVisible) {
-        // Show hidden message
-        const salaryTableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
-        if (salaryTableContainer) {
-            salaryTableContainer.innerHTML = `
-                <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
-                    <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
-                    </div>
-                    <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
-                    <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
+    // Get references to table container and hidden message
+    const tableContainer = document.querySelector('#portalSalaryDetails')?.closest('.overflow-x-auto');
+
+    // Create hidden message element if it doesn't exist
+    let hiddenMsg = document.getElementById('salaryHiddenMessage');
+    if (!hiddenMsg) {
+        hiddenMsg = document.createElement('div');
+        hiddenMsg.id = 'salaryHiddenMessage';
+        hiddenMsg.innerHTML = `
+            <div class="bg-red-50 border-2 border-red-200 rounded-xl p-6 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-4">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
                 </div>
-            `;
+                <h4 class="text-xl font-bold text-red-700 mb-2">الراتب غير متاح حالياً</h4>
+                <p class="text-red-600">. تواصل مع الإدارة للاستفسار.</p>
+            </div>
+        `;
+    }
+
+    if (!isVisible) {
+        // Hide table, show hidden message
+        if (tableContainer) {
+            tableContainer.style.display = 'none';
+            if (!tableContainer.parentNode.querySelector('#salaryHiddenMessage')) {
+                tableContainer.parentNode.insertBefore(hiddenMsg, tableContainer.nextSibling);
+            }
+            hiddenMsg.style.display = 'block';
         }
         // Clear summary values
         const psoEl = document.getElementById('portalSalOrders');
@@ -863,6 +897,14 @@ function portalRefreshSalaryOnly() {
         if (pseEl) pseEl.textContent = '-';
         if (psn2El) psn2El.textContent = '-';
         return;
+    }
+
+    // Show table, hide hidden message
+    if (tableContainer) {
+        tableContainer.style.display = 'block';
+    }
+    if (hiddenMsg) {
+        hiddenMsg.style.display = 'none';
     }
 
     const mySalaryData = (salaries[salaryKey] && salaries[salaryKey][repId]) || {};
