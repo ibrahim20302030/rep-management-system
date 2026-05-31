@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -40,7 +41,10 @@ const repPasswordsRef = db.ref('repPasswords');
         .fade-in { animation: fadeIn 0.5s ease; }
         .progress-ring { transform: rotate(-90deg); }
         .progress-ring-circle { transition: stroke-dashoffset 0.5s ease; }
-        .sync-status { position: fixed; bottom: 16px; left: 16px; padding: 6px 12px; border-radius: 16px; font-size: 11px; font-weight: 600; z-index: 9999; transition: all 0.3s; }
+        .sync-status { position: fixed; bottom: 16px; left: 16px; width: 14px; height: 14px; border-radius: 50%; z-index: 9999; transition: all 0.3s; padding: 0; font-size: 0; overflow: hidden; }
+        .sync-status.online { background: #10b981; box-shadow: 0 0 8px rgba(16, 185, 129, 0.6); }
+        .sync-status.offline { background: #f59e0b; box-shadow: 0 0 8px rgba(245, 158, 11, 0.6); }
+        .sync-status.syncing { background: #3b82f6; box-shadow: 0 0 8px rgba(59, 130, 246, 0.6); }
         .sync-status.online { background: #10b981; color: white; }
         .sync-status.offline { background: #f59e0b; color: white; }
         .sync-status.syncing { background: #3b82f6; color: white; }
@@ -123,7 +127,7 @@ const repPasswordsRef = db.ref('repPasswords');
 </div>
 
 <!-- Sync Status Indicator -->
-<div id="syncStatus" class="sync-status online" data-i18n="syncOnline">🟢 متصل بـ Firebase</div>
+<div id="syncStatus" class="sync-status online" title="متصل بـ Firebase"></div>
 
 <!-- LOGIN PAGE -->
 <div id="portalLogin" class="min-h-screen flex items-center justify-center p-4">
@@ -472,10 +476,10 @@ function setSyncStatus(status, msg) {
     const el = document.getElementById('syncStatus');
     el.className = 'sync-status ' + status;
     const t = translations[currentLang];
-    if (status === 'online') el.textContent = t.syncOnline;
-    else if (status === 'offline') el.textContent = t.syncOffline;
-    else if (status === 'syncing') el.textContent = t.syncSyncing;
-    else el.textContent = msg;
+    if (status === 'online') el.title = t.syncOnline;
+    else if (status === 'offline') el.title = t.syncOffline;
+    else if (status === 'syncing') el.title = t.syncSyncing;
+    else el.title = msg;
 }
 
 function showToast(msg, type) {
